@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Professional transport business theme */
+    --background: 0 0% 100%;
+    --foreground: 210 11% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 210 11% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 11% 15%;
+
+    /* Professional navy blue primary */
+    --primary: 212 91% 21%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 212 91% 18%;
+
+    /* Soft gray secondary */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 210 11% 15%;
+
+    /* Muted backgrounds */
+    --muted: 210 20% 96%;
+    --muted-foreground: 210 11% 46%;
+
+    /* Success green for paid status */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning orange for pending */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Professional accent */
+    --accent: 210 20% 96%;
+    --accent-foreground: 210 11% 15%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 212 91% 21%;
+
+    /* Professional gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(212 91% 21%), hsl(212 91% 26%));
+    --gradient-secondary: linear-gradient(135deg, hsl(210 20% 96%), hsl(210 20% 98%));
+    
+    /* Elegant shadows */
+    --shadow-soft: 0 2px 8px -2px hsl(210 11% 15% / 0.08);
+    --shadow-medium: 0 4px 16px -4px hsl(210 11% 15% / 0.12);
+    --shadow-large: 0 8px 32px -8px hsl(210 11% 15% / 0.16);
+
+    /* Smooth transitions */
+    --transition-smooth: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark theme adjustments */
+    --background: 210 11% 6%;
+    --foreground: 210 20% 96%;
+
+    --card: 210 11% 8%;
+    --card-foreground: 210 20% 96%;
+
+    --popover: 210 11% 8%;
+    --popover-foreground: 210 20% 96%;
+
+    --primary: 212 91% 35%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 212 91% 32%;
+
+    --secondary: 210 11% 12%;
+    --secondary-foreground: 210 20% 96%;
+
+    --muted: 210 11% 12%;
+    --muted-foreground: 210 11% 60%;
+
+    --accent: 210 11% 12%;
+    --accent-foreground: 210 20% 96%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 210 11% 15%;
+    --input: 210 11% 15%;
+    --ring: 212 91% 35%;
+
+    --sidebar-background: 210 11% 4%;
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 212 91% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 11% 8%;
+    --sidebar-accent-foreground: 210 20% 90%;
+    --sidebar-border: 210 11% 12%;
+    --sidebar-ring: 212 91% 35%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
