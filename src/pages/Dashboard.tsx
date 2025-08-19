@@ -4,14 +4,7 @@ import { StatsCard } from "@/components/dashboard/StatsCard"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-// import { createClient } from "@supabase/supabase-js"
 import { supabase } from "@/integrations/supabase/client"
-
-
-// Initialize Supabase client
-// const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-// const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-// const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -20,12 +13,22 @@ export default function Dashboard() {
     unpaidBills: 0,
     totalClients: 0,
     monthlyRevenue: "₹0",
-    overdueAmount: "₹0"
+    overdueAmount: "₹0",
+    totalBillsTrend: { value: "0%", isPositive: true },
+    paidBillsTrend: { value: "0%", isPositive: true },
+    totalClientsTrend: { value: "+0 new this month", isPositive: true },
+    monthlyRevenueTrend: { value: "0%", isPositive: true },
   })
   const [recentBills, setRecentBills] = useState<any[]>([])
 
   useEffect(() => {
     async function fetchData() {
+      const now = new Date()
+      const currentMonth = now.getMonth()
+      const currentYear = now.getFullYear()
+      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1
+      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear
+
       // Fetch bills
       const { data: bills, error: billsError } = await supabase
         .from("bills")
@@ -35,24 +38,49 @@ export default function Dashboard() {
       // Fetch clients
       const { data: clients, error: clientsError } = await supabase
         .from("clients")
-        .select("id")
+        .select("*")
 
       if (bills && clients) {
         const paidBills = bills.filter((b: any) => b.status === "paid")
         const unpaidBills = bills.filter((b: any) => b.status === "unpaid")
         const overdueBills = bills.filter((b: any) => b.status === "overdue")
-        const monthlyBills = bills.filter((b: any) => {
+
+        const currentMonthBills = bills.filter((b: any) => {
           const billDate = new Date(b.date)
-          const now = new Date()
           return (
-            billDate.getMonth() === now.getMonth() &&
-            billDate.getFullYear() === now.getFullYear()
+            billDate.getMonth() === currentMonth &&
+            billDate.getFullYear() === currentYear
           )
         })
-        const monthlyRevenue = monthlyBills
-          .filter((b: any) => b.status === "paid")
-          .reduce((sum: number, b: any) => sum + (b.amount || 0), 0)
+
+        const lastMonthBills = bills.filter((b: any) => {
+            const billDate = new Date(b.date)
+            return (
+                billDate.getMonth() === lastMonth &&
+                billDate.getFullYear() === lastMonthYear
+            )
+        })
+
+        const currentMonthPaidBills = currentMonthBills.filter((b: any) => b.status === "paid");
+        const lastMonthPaidBills = lastMonthBills.filter((b: any) => b.status === "paid");
+
+        const monthlyRevenue = currentMonthPaidBills.reduce((sum: number, b: any) => sum + (b.amount || 0), 0)
+        const lastMonthRevenue = lastMonthPaidBills.reduce((sum: number, b: any) => sum + (b.amount || 0), 0)
+        
         const overdueAmount = overdueBills.reduce((sum: number, b: any) => sum + (b.amount || 0), 0)
+
+        const newClientsThisMonth = clients.filter((c: any) => {
+            const joinDate = new Date(c.created_at)
+            return (
+                joinDate.getMonth() === currentMonth &&
+                joinDate.getFullYear() === currentYear
+            )
+        }).length
+
+        const totalBillsPercentageChange = lastMonthBills.length > 0 ? ((currentMonthBills.length - lastMonthBills.length) / lastMonthBills.length) * 100 : 100;
+        const paidBillsPercentageChange = lastMonthPaidBills.length > 0 ? ((currentMonthPaidBills.length - lastMonthPaidBills.length) / lastMonthPaidBills.length) * 100 : 100;
+        const monthlyRevenuePercentageChange = lastMonthRevenue > 0 ? ((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 100 : 100;
+
 
         setStats({
           totalBills: bills.length,
@@ -60,7 +88,11 @@ export default function Dashboard() {
           unpaidBills: unpaidBills.length,
           totalClients: clients.length,
           monthlyRevenue: `₹${monthlyRevenue.toLocaleString()}`,
-          overdueAmount: `₹${overdueAmount.toLocaleString()}`
+          overdueAmount: `₹${overdueAmount.toLocaleString()}`,
+          totalBillsTrend: { value: `${totalBillsPercentageChange.toFixed(0)}% from last month`, isPositive: totalBillsPercentageChange >= 0 },
+          paidBillsTrend: { value: `${paidBillsPercentageChange.toFixed(0)}% from last month`, isPositive: paidBillsPercentageChange >= 0 },
+          totalClientsTrend: { value: `+${newClientsThisMonth} new this month`, isPositive: true },
+          monthlyRevenueTrend: { value: `${monthlyRevenuePercentageChange.toFixed(0)}% from last month`, isPositive: monthlyRevenuePercentageChange >= 0 },
         })
         setRecentBills(bills.slice(0, 4))
       }
@@ -93,14 +125,14 @@ export default function Dashboard() {
           title="Total Bills"
           value={stats.totalBills}
           icon={<FileText className="w-4 h-4" />}
-          trend={{ value: "+12% from last month", isPositive: true }}
+          trend={stats.totalBillsTrend}
         />
         <StatsCard
           title="Paid Bills"
           value={stats.paidBills}
           icon={<CreditCard className="w-4 h-4" />}
           variant="success"
-          trend={{ value: "+8% from last month", isPositive: true }}
+          trend={stats.paidBillsTrend}
         />
         <StatsCard
           title="Unpaid Bills"
@@ -112,7 +144,7 @@ export default function Dashboard() {
           title="Total Clients"
           value={stats.totalClients}
           icon={<Users className="w-4 h-4" />}
-          trend={{ value: "+3 new this month", isPositive: true }}
+          trend={stats.totalClientsTrend}
         />
       </div>
 
@@ -125,7 +157,7 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-3xl font-bold text-success">{stats.monthlyRevenue}</div>
             <p className="text-sm text-muted-foreground mt-2">
-              +15% from last month
+              {stats.monthlyRevenueTrend.value}
             </p>
           </CardContent>
         </Card>

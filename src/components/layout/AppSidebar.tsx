@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Users, FileText, CreditCard, BarChart3, Home, Menu, X, LogOut } from "lucide-react"
+import { Users, FileText, CreditCard, BarChart3, Home, Menu, X, LogOut, Briefcase } from "lucide-react"
 import { NavLink, useLocation } from "react-router-dom"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ const navigation = [
   { title: "Bills", url: "/bills", icon: FileText },
   { title: "Payments", url: "/payments", icon: CreditCard },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Profile", url: "/profile", icon: Briefcase },
 ]
 
 export function AppSidebar() {

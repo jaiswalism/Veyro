@@ -102,6 +102,32 @@ export interface Database {
           transaction_id?: string | null
         }
       }
+      profiles: {
+        Row: {
+          id: number
+          user_id: string
+          company_name: string | null
+          phone: string | null
+          address: string | null
+          gst_number: string | null
+        }
+        Insert: {
+          id?: number
+          user_id: string
+          company_name?: string | null
+          phone?: string | null
+          address?: string | null
+          gst_number?: string | null
+        }
+        Update: {
+          id?: number
+          user_id?: string
+          company_name?: string | null
+          phone?: string | null
+          address?: string | null
+          gst_number?: string | null
+        }
+      }
     }
     Views: {
       [_ in never]: never
