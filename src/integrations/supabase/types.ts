@@ -114,6 +114,8 @@ export interface Database {
           address: string | null
           gst_number: string | null
           gst_registered: boolean | null
+          logo_url: string | null
+          theme_color: string | null
         }
         Insert: {
           id?: number
@@ -123,6 +125,8 @@ export interface Database {
           address?: string | null
           gst_number?: string | null
           gst_registered?: boolean | null
+          logo_url?: string | null
+          theme_color?: string | null
         }
         Update: {
           id?: number
@@ -132,43 +136,8 @@ export interface Database {
           address?: string | null
           gst_number?: string | null
           gst_registered?: boolean | null
-        }
-      }
-      bill_templates: {
-        Row: {
-          id: number
-          name: string
-          user_id: string | null
-        }
-        Insert: {
-          id?: number
-          name: string
-          user_id?: string | null
-        }
-        Update: {
-          id?: number
-          name?: string
-          user_id?: string | null
-        }
-      }
-      template_fields: {
-        Row: {
-          id: number
-          template_id: number
-          field_name: string
-          field_type: string
-        }
-        Insert: {
-          id?: number
-          template_id: number
-          field_name: string
-          field_type?: string
-        }
-        Update: {
-          id?: number
-          template_id?: number
-          field_name?: string
-          field_type?: string
+          logo_url?: string | null
+          theme_color?: string | null
         }
       }
     }

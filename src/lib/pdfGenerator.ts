@@ -6,53 +6,90 @@ type Bill = Database['public']['Tables']['bills']['Row'];
 type Client = Database['public']['Tables']['clients']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
-export const generateInvoicePdf = (bill: Bill, client: Client, profile: Profile) => {
+// Helper function to fetch and convert the logo image to Base64
+const loadImageAsBase64 = (url: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+            const reader = new FileReader();
+            reader.onloadend = function () {
+                resolve(reader.result as string);
+            };
+            reader.readAsDataURL(xhr.response);
+        };
+        xhr.onerror = reject;
+        xhr.open('GET', url);
+        xhr.responseType = 'blob';
+        xhr.send();
+    });
+};
+
+export const generateInvoicePdf = async (bill: Bill, client: Client, profile: Profile) => {
   const doc = new jsPDF();
+  const themeColor = profile.theme_color || '#1A2E44'; // A professional navy blue default
 
-  // Company Details
-  doc.setFontSize(20);
-  doc.text(profile.company_name || 'Your Company', 14, 22);
-  doc.setFontSize(10);
-  doc.text(profile.address || '', 14, 30);
-  doc.text(profile.phone || '', 14, 35);
+  // === Header Section ===
+  if (profile.logo_url) {
+    try {
+        const logoBase64 = await loadImageAsBase64(profile.logo_url);
+        doc.addImage(logoBase64, 'PNG', 14, 15, 40, 15); // Adjust size as needed
+    } catch (error) {
+        console.error("Error loading logo image:", error);
+    }
+  }
+
+  doc.setFontSize(28);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(themeColor);
+  doc.text('INVOICE', 200, 25, { align: 'right' });
+
+  // --- Company Details ---
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(80, 80, 80);
+  doc.text(profile.company_name || 'Your Company', 200, 35, { align: 'right' });
+  doc.text(profile.address || '', 200, 40, { align: 'right' });
+  doc.text(profile.phone || '', 200, 45, { align: 'right' });
   if (profile.gst_registered && profile.gst_number) {
-    doc.text(`GSTIN: ${profile.gst_number}`, 14, 40);
+    doc.text(`GSTIN: ${profile.gst_number}`, 200, 50, { align: 'right' });
   }
 
-  // Bill To Details
-  doc.setFontSize(12);
-  doc.text('Bill To:', 14, 60);
+  // === Billing Information Section ===
+  doc.setLineWidth(0.1);
+  doc.line(14, 60, 200, 60);
+
   doc.setFontSize(10);
-  doc.text(client.name, 14, 66);
-  doc.text(client.address || '', 14, 71);
-  doc.text(client.contact || '', 14, 76);
-  if (client.gst) {
-    doc.text(`GSTIN: ${client.gst}`, 14, 81);
-  }
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(150, 150, 150);
+  doc.text('BILL TO', 14, 68);
+  doc.text('INVOICE #', 110, 68);
+  doc.text('DATE', 140, 68);
+  doc.text('DUE DATE', 170, 68);
 
-  // Invoice Details
-  doc.setFontSize(12);
-  doc.text(`Invoice #: ${bill.id}`, 140, 60);
-  doc.text(`Invoice Date: ${bill.date}`, 140, 66);
-  doc.text(`Status: ${bill.status.toUpperCase()}`, 140, 72);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(50, 50, 50);
+  doc.text(client.name, 14, 74);
+  doc.text(bill.id.toString(), 110, 74);
+  doc.text(bill.date, 140, 74);
+  doc.text(bill.date, 170, 74); // Using bill date as due date for now
+  
+  doc.line(14, 80, 200, 80);
 
-  // Table of Services
-  const tableColumn = ["#", "Party", "Challan No.", "Vehicle", "From", "To", "Trips", "Amount"];
+  // === Services Table ===
+  const tableColumn = ["PARTY/CONSIGNEE", "CHALLAN NO.", "VEHICLE", "FROM → TO", "TRIPS", "AMOUNT (INR)"];
   const tableRows: any[][] = [];
 
   const services = Array.isArray(bill.services) ? bill.services : [];
   let subtotal = 0;
 
-  services.forEach((service: any, index: number) => {
+  services.forEach((service: any) => {
     const itemTotal = (service.amount || 0) * (service.trips || 1);
     subtotal += itemTotal;
     const serviceData = [
-      index + 1,
       service.party || '-',
       service.challan_number || '-',
       service.vehicle,
-      service.from,
-      service.to,
+      `${service.from} to ${service.to}`,
       service.trips || 1,
       itemTotal.toLocaleString('en-IN'),
     ];
@@ -60,37 +97,60 @@ export const generateInvoicePdf = (bill: Bill, client: Client, profile: Profile)
   });
 
   autoTable(doc, {
-    startY: 90,
+    startY: 85,
     head: [tableColumn],
     body: tableRows,
-    theme: 'striped',
-    headStyles: { fillColor: [38, 50, 56] },
+    theme: 'grid',
+    headStyles: {
+      fillColor: themeColor,
+      textColor: '#FFFFFF',
+      fontSize: 8,
+      fontStyle: 'bold',
+    },
+    styles: {
+        fontSize: 8,
+        cellPadding: 2,
+    },
+    columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 40 },
+        4: { halign: 'center', cellWidth: 15 },
+        5: { halign: 'right', cellWidth: 25 },
+    }
   });
 
-  // Totals Section
+  // === Totals Section ===
   const finalY = (doc as any).lastAutoTable.finalY;
-  doc.setFontSize(10);
   let yPos = finalY + 10;
+  
+  doc.setFontSize(10);
+  doc.setTextColor(80, 80, 80);
 
-  doc.text(`Subtotal:`, 140, yPos);
-  doc.text(subtotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }), 190, yPos, { align: 'right' });
-  yPos += 6;
+  doc.text('Subtotal:', 140, yPos);
+  doc.text(subtotal.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }), 200, yPos, { align: 'right' });
+  yPos += 7;
 
   if (bill.advance && bill.advance > 0) {
-    doc.text(`Advance:`, 140, yPos);
-    doc.text(bill.advance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }), 190, yPos, { align: 'right' });
-    yPos += 6;
+    doc.text('Advance Paid:', 140, yPos);
+    doc.text(`-${bill.advance.toLocaleString('en-IN', { style: 'currency', currency: 'INR' })}`, 200, yPos, { align: 'right' });
+    yPos += 7;
   }
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Total Amount:`, 140, yPos);
-  doc.text(bill.amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }), 190, yPos, { align: 'right' });
+  doc.setTextColor(themeColor);
+  doc.text('Total Amount:', 140, yPos);
+  doc.text(bill.amount.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }), 200, yPos, { align: 'right' });
 
-  // Footer
-  doc.setFontSize(8);
-  doc.text('Thank you for your business!', 14, doc.internal.pageSize.height - 10);
+  // === Footer ===
+  doc.setFontSize(9);
+  doc.setTextColor(150, 150, 150);
+  doc.text('Notes', 14, doc.internal.pageSize.height - 25);
+  doc.setTextColor(80, 80, 80);
+  doc.text('Thank you for your business!', 14, doc.internal.pageSize.height - 20);
 
-  // Save the PDF
+  // --- Save the PDF ---
   doc.save(`invoice-${bill.id}-${client.name}.pdf`);
 };

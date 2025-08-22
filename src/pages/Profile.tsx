@@ -20,6 +20,8 @@ const profileSchema = z.object({
   address: z.string().optional().nullable(),
   gst_registered: z.boolean().default(false),
   gst_number: z.string().optional().nullable(),
+  logo_url: z.string().optional().nullable(),
+  theme_color: z.string().optional().nullable(),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -28,6 +30,8 @@ export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [uploading, setUploading] = useState(false);
+  
   const {
     register,
     handleSubmit,
@@ -43,6 +47,7 @@ export default function Profile() {
   });
 
   const gstRegistered = watch("gst_registered");
+  const themeColor = watch("theme_color");
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -61,6 +66,25 @@ export default function Profile() {
     };
     fetchProfile();
   }, [user, reset]);
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const fileName = `${user.id}/${Date.now()}`;
+    const { error } = await supabase.storage.from('logos').upload(fileName, file);
+
+    if (error) {
+        toast({ title: "Error uploading logo", description: error.message, variant: "destructive" });
+    } else {
+        const { data } = supabase.storage.from('logos').getPublicUrl(fileName);
+        setValue('logo_url', data.publicUrl, { shouldValidate: true });
+        toast({ title: "Logo uploaded successfully" });
+    }
+    setUploading(false);
+  }
 
   const onSubmit = async (data: ProfileFormData) => {
     if (user) {
@@ -127,6 +151,18 @@ export default function Profile() {
                     <Input id="gst_number" {...register("gst_number")} />
                 </div>
             )}
+            <div className="space-y-2">
+                <Label htmlFor="logo">Company Logo</Label>
+                <Input id="logo" type="file" onChange={handleLogoUpload} disabled={uploading} />
+                {uploading && <p className="text-sm text-muted-foreground">Uploading...</p>}
+            </div>
+             <div className="space-y-2">
+                <Label htmlFor="theme_color">Invoice Theme Color</Label>
+                <div className="flex items-center gap-2">
+                    <Input id="theme_color" type="color" className="w-12 h-10 p-1" {...register("theme_color")} />
+                    <span className="text-sm text-muted-foreground">{themeColor || "#000000"}</span>
+                </div>
+            </div>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Saving..." : "Save Changes"}
             </Button>
