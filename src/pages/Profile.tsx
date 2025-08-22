@@ -5,6 +5,7 @@ import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,7 @@ const profileSchema = z.object({
   company_name: z.string().min(1, "Company name is required"),
   phone: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
+  gst_registered: z.boolean().default(false),
   gst_number: z.string().optional().nullable(),
 });
 
@@ -30,10 +32,17 @@ export default function Profile() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
+    defaultValues: {
+        gst_registered: false,
+    }
   });
+
+  const gstRegistered = watch("gst_registered");
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -57,7 +66,9 @@ export default function Profile() {
     if (user) {
       const { error } = await supabase
         .from("profiles")
-        .upsert({ ...data, user_id: user.id });
+        .upsert({ ...data, user_id: user.id }, {
+            onConflict: 'user_id',
+        });
 
       if (error) {
         toast({
@@ -106,10 +117,16 @@ export default function Profile() {
               <Label htmlFor="address">Address</Label>
               <Input id="address" {...register("address")} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="gst_number">GST Number</Label>
-              <Input id="gst_number" {...register("gst_number")} />
+            <div className="flex items-center space-x-2">
+                <Switch id="gst_registered" checked={gstRegistered} onCheckedChange={(checked) => setValue("gst_registered", checked)} />
+                <Label htmlFor="gst_registered">GST Registered?</Label>
             </div>
+            {gstRegistered && (
+                <div className="space-y-2">
+                    <Label htmlFor="gst_number">GST Number</Label>
+                    <Input id="gst_number" {...register("gst_number")} />
+                </div>
+            )}
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? "Saving..." : "Save Changes"}
             </Button>

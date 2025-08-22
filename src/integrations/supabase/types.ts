@@ -19,7 +19,7 @@ export interface Database {
           date: string
           client: string
           services: Json | null
-          template_id: number | null
+          advance: number | null
         }
         Insert: {
           id?: number
@@ -30,7 +30,7 @@ export interface Database {
           date: string
           client: string
           services?: Json | null
-          template_id?: number | null
+          advance?: number | null
         }
         Update: {
           id?: number
@@ -41,7 +41,7 @@ export interface Database {
           date?: string
           client?: string
           services?: Json | null
-          template_id?: number | null
+          advance?: number | null
         }
       }
       clients: {
@@ -113,6 +113,7 @@ export interface Database {
           phone: string | null
           address: string | null
           gst_number: string | null
+          gst_registered: boolean | null
         }
         Insert: {
           id?: number
@@ -121,6 +122,7 @@ export interface Database {
           phone?: string | null
           address?: string | null
           gst_number?: string | null
+          gst_registered?: boolean | null
         }
         Update: {
           id?: number
@@ -129,6 +131,7 @@ export interface Database {
           phone?: string | null
           address?: string | null
           gst_number?: string | null
+          gst_registered?: boolean | null
         }
       }
       bill_templates: {
