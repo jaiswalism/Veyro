@@ -30,8 +30,12 @@ import { Database } from "@/integrations/supabase/types"
 import { useToast } from "@/hooks/use-toast"
 import { AddBillDialog } from "@/components/bills/AddBillDialog"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/contexts/AuthContext"
+import { generateInvoicePdf } from "@/lib/pdfGenerator"
 
 type Bill = Database['public']['Tables']['bills']['Row'];
+type Client = Database['public']['Tables']['clients']['Row'];
+type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export default function Bills() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -41,6 +45,7 @@ export default function Bills() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingBill, setEditingBill] = useState<Bill | null>(null)
   const { toast } = useToast()
+  const { user } = useAuth();
 
   const fetchBills = async () => {
     setLoading(true)
@@ -79,6 +84,34 @@ export default function Bills() {
         fetchBills()
       }
     }
+  }
+
+  const handleDownloadPdf = async (bill: Bill) => {
+    if (!user) {
+        toast({ title: "Error", description: "You must be logged in.", variant: "destructive" });
+        return;
+    }
+    // 1. Fetch Client Info
+    const { data: client, error: clientError } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('id', bill.client_id)
+        .single();
+
+    // 2. Fetch Profile Info
+    const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+    if (clientError || profileError || !client || !profile) {
+        toast({ title: "Error fetching data for PDF", description: clientError?.message || profileError?.message || "Could not find client or profile.", variant: "destructive" });
+        return;
+    }
+
+    // 3. Generate PDF
+    generateInvoicePdf(bill, client, profile);
   }
 
   const handleSave = () => {
@@ -209,7 +242,7 @@ export default function Bills() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(bill)}>
                           <Download className="w-4 h-4 mr-1" />
                           PDF
                         </Button>
