@@ -14,6 +14,7 @@ import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
+import BillTemplates from "./pages/BillTemplates";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
                     <Route path="/payments" element={<Payments />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/profile" element={<Profile />} />
+                    <Route path="/bill-templates" element={<BillTemplates />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
                   </Routes>
