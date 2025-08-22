@@ -12,16 +12,24 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
 import { Trash2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 type BillTemplate = Database['public']['Tables']['bill_templates']['Row'];
 
 const fieldSchema = z.object({
   field_name: z.string().min(1, "Field name is required"),
-  field_type: z.string().min(1, "Field type is required"),
+  field_type: z.enum(["text", "number", "date"]),
 });
 
 const templateSchema = z.object({
@@ -45,11 +53,13 @@ export function AddTemplateDialog({
   template,
 }: AddTemplateDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const {
     register,
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<TemplateFormData>({
     resolver: zodResolver(templateSchema),
@@ -77,7 +87,36 @@ export function AddTemplateDialog({
   }, [template, isOpen, reset]);
 
   const onSubmit = async (data: TemplateFormData) => {
-    // Logic to save the template and its fields to Supabase
+    if (!user) {
+        toast({ title: "Authentication Error", description: "You must be logged in to create a template.", variant: "destructive" });
+        return;
+    }
+
+    // Insert into bill_templates
+    const { data: templateData, error: templateError } = await supabase
+      .from("bill_templates")
+      .insert({ name: data.name, user_id: user.id })
+      .select()
+      .single();
+
+    if (templateError || !templateData) {
+      toast({ title: "Error creating template", description: templateError?.message || "An unexpected error occurred.", variant: "destructive" });
+      return;
+    }
+
+    // Insert into template_fields
+    const fieldsToInsert = data.fields.map(field => ({
+        template_id: templateData.id,
+        ...field
+    }));
+
+    const { error: fieldsError } = await supabase.from("template_fields").insert(fieldsToInsert);
+
+    if (fieldsError) {
+        toast({ title: "Error saving template fields", description: fieldsError.message, variant: "destructive" });
+        return;
+    }
+
     toast({ title: "Template saved", description: "The template has been saved successfully." });
     onSave();
   };
@@ -100,7 +139,16 @@ export function AddTemplateDialog({
             {fields.map((field, index) => (
               <div key={field.id} className="grid grid-cols-11 gap-2 items-center">
                 <Input {...register(`fields.${index}.field_name`)} placeholder="Field Name" className="col-span-5" />
-                <Input {...register(`fields.${index}.field_type`)} placeholder="Field Type" className="col-span-5" />
+                <Select onValueChange={(value) => setValue(`fields.${index}.field_type`, value as "text" | "number" | "date")}>
+                  <SelectTrigger className="col-span-5">
+                    <SelectValue placeholder="Select a type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="text">Text</SelectItem>
+                    <SelectItem value="number">Number</SelectItem>
+                    <SelectItem value="date">Date</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="col-span-1">
                   <Trash2 className="h-4 w-4" />
                 </Button>
