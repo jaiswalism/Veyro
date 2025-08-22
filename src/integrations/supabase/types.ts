@@ -19,7 +19,7 @@ export interface Database {
           date: string
           client: string
           services: Json | null
-          template_id: number | null
+          advance: number | null
         }
         Insert: {
           id?: number
@@ -30,7 +30,7 @@ export interface Database {
           date: string
           client: string
           services?: Json | null
-          template_id?: number | null
+          advance?: number | null
         }
         Update: {
           id?: number
@@ -41,7 +41,7 @@ export interface Database {
           date?: string
           client?: string
           services?: Json | null
-          template_id?: number | null
+          advance?: number | null
         }
       }
       clients: {
@@ -113,6 +113,9 @@ export interface Database {
           phone: string | null
           address: string | null
           gst_number: string | null
+          gst_registered: boolean | null
+          logo_url: string | null
+          theme_color: string | null
         }
         Insert: {
           id?: number
@@ -121,6 +124,9 @@ export interface Database {
           phone?: string | null
           address?: string | null
           gst_number?: string | null
+          gst_registered?: boolean | null
+          logo_url?: string | null
+          theme_color?: string | null
         }
         Update: {
           id?: number
@@ -129,43 +135,9 @@ export interface Database {
           phone?: string | null
           address?: string | null
           gst_number?: string | null
-        }
-      }
-      bill_templates: {
-        Row: {
-          id: number
-          name: string
-          user_id: string | null
-        }
-        Insert: {
-          id?: number
-          name: string
-          user_id?: string | null
-        }
-        Update: {
-          id?: number
-          name?: string
-          user_id?: string | null
-        }
-      }
-      template_fields: {
-        Row: {
-          id: number
-          template_id: number
-          field_name: string
-          field_type: string
-        }
-        Insert: {
-          id?: number
-          template_id: number
-          field_name: string
-          field_type?: string
-        }
-        Update: {
-          id?: number
-          template_id?: number
-          field_name?: string
-          field_type?: string
+          gst_registered?: boolean | null
+          logo_url?: string | null
+          theme_color?: string | null
         }
       }
     }
