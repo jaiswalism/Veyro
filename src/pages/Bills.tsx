@@ -28,10 +28,10 @@ import {
 import { supabase } from "@/integrations/supabase/client"
 import { Database } from "@/integrations/supabase/types"
 import { useToast } from "@/hooks/use-toast"
-import { AddBillDialog } from "@/components/bills/AddBillDialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useAuth } from "@/contexts/AuthContext"
 import { generateInvoicePdf } from "@/lib/pdfGenerator"
+import { useNavigate } from "react-router-dom"
 
 type Bill = Database['public']['Tables']['bills']['Row'];
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -42,10 +42,9 @@ export default function Bills() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [bills, setBills] = useState<Bill[]>([])
   const [loading, setLoading] = useState(true)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [editingBill, setEditingBill] = useState<Bill | null>(null)
   const { toast } = useToast()
   const { user } = useAuth();
+  const navigate = useNavigate(); // Add useNavigate hook
 
   const fetchBills = async () => {
     setLoading(true)
@@ -114,12 +113,6 @@ export default function Bills() {
     generateInvoicePdf(bill, client, profile);
   }
 
-  const handleSave = () => {
-    setIsDialogOpen(false)
-    setEditingBill(null)
-    fetchBills()
-  }
-
   const filteredBills = bills.filter(bill => {
     const matchesSearch = bill.id.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
                          bill.client.toLowerCase().includes(searchTerm.toLowerCase())
@@ -154,7 +147,8 @@ export default function Bills() {
             Manage bills, track payments, and generate invoices.
           </p>
         </div>
-        <Button className="mt-4 sm:mt-0" onClick={() => { setEditingBill(null); setIsDialogOpen(true); }}>
+        {/* Update this button to navigate */}
+        <Button className="mt-4 sm:mt-0" onClick={() => navigate('/bills/new')}>
           <Plus className="w-4 h-4 mr-2" />
           Create Bill
         </Button>
@@ -253,7 +247,7 @@ export default function Bills() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => { setEditingBill(bill); setIsDialogOpen(true); }}>
+                            <DropdownMenuItem>
                               <Pencil className="w-4 h-4 mr-2" />
                               Edit Bill
                             </DropdownMenuItem>
@@ -277,12 +271,6 @@ export default function Bills() {
           </div>
         </CardContent>
       </Card>
-      <AddBillDialog
-        isOpen={isDialogOpen}
-        onClose={() => setIsDialogOpen(false)}
-        onSave={handleSave}
-        bill={editingBill}
-      />
     </div>
   )
 }
