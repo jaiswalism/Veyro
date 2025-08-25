@@ -1,3 +1,5 @@
+// src/components/clients/AddClientDialog.tsx
+
 import { useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -15,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import { Database } from "@/integrations/supabase/types"
+import { useAuth } from "@/contexts/AuthContext" // <-- Import useAuth
 
 type Client = Database['public']['Tables']['clients']['Row'];
 
@@ -38,6 +41,7 @@ interface AddClientDialogProps {
 
 export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDialogProps) {
   const { toast } = useToast()
+  const { user } = useAuth() // <-- Get the current user
   const {
     register,
     handleSubmit,
@@ -63,6 +67,11 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
   }, [client, reset])
 
   const onSubmit = async (data: ClientFormData) => {
+    if (!user) {
+      toast({ title: "Error", description: "You must be logged in to add a client.", variant: "destructive"})
+      return;
+    }
+
     if (client) {
       // Update client
       const { error } = await supabase
@@ -76,8 +85,8 @@ export function AddClientDialog({ isOpen, onClose, onSave, client }: AddClientDi
         onSave()
       }
     } else {
-      // Add new client
-      const { error } = await supabase.from("clients").insert([data])
+      // Add new client with user_id
+      const { error } = await supabase.from("clients").insert([{ ...data, user_id: user.id }])
       if (error) {
         toast({ title: "Error adding client", description: error.message, variant: "destructive" })
       } else {

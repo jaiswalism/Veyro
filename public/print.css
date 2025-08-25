@@ -1,0 +1,44 @@
+/* This stylesheet is applied ONLY when printing the page */
+@media print {
+  /* Hide everything on the page by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Only show the invoice content and its children */
+  #invoice-content, #invoice-content * {
+    visibility: visible;
+  }
+
+  /* Position the invoice content at the top of the page */
+  #invoice-content {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+  }
+
+  /* Remove interactive elements from the printed version */
+  button, select, input[type="date"], .remove-btn {
+    display: none !important;
+  }
+
+  /* Style the inputs as plain text for the PDF */
+  input {
+    border: none !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact; /* Ensures text color is printed */
+    color-adjust: exact;
+  }
+  
+  /* Ensure the layout doesn't break */
+   .grid, .flex {
+    display: block;
+   }
+}

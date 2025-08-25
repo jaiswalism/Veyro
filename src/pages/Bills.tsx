@@ -44,7 +44,7 @@ export default function Bills() {
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
   const { user } = useAuth();
-  const navigate = useNavigate(); // Add useNavigate hook
+  const navigate = useNavigate();
 
   const fetchBills = async () => {
     setLoading(true)
@@ -90,14 +90,12 @@ export default function Bills() {
         toast({ title: "Error", description: "You must be logged in.", variant: "destructive" });
         return;
     }
-    // 1. Fetch Client Info
     const { data: client, error: clientError } = await supabase
         .from('clients')
         .select('*')
         .eq('id', bill.client_id)
         .single();
 
-    // 2. Fetch Profile Info
     const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -109,7 +107,6 @@ export default function Bills() {
         return;
     }
 
-    // 3. Generate PDF
     generateInvoicePdf(bill, client, profile);
   }
 
@@ -139,7 +136,6 @@ export default function Bills() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Bills</h1>
@@ -147,14 +143,12 @@ export default function Bills() {
             Manage bills, track payments, and generate invoices.
           </p>
         </div>
-        {/* Update this button to navigate */}
         <Button className="mt-4 sm:mt-0" onClick={() => navigate('/bills/new')}>
           <Plus className="w-4 h-4 mr-2" />
           Create Bill
         </Button>
       </div>
 
-      {/* Search and Filters */}
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row gap-4">
@@ -182,7 +176,6 @@ export default function Bills() {
         </CardHeader>
       </Card>
 
-      {/* Bills Table */}
       <Card>
         <CardHeader>
           <CardTitle className="text-foreground">All Bills ({filteredBills.length})</CardTitle>
@@ -247,7 +240,7 @@ export default function Bills() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/bills/edit/${bill.id}`)}>
                               <Pencil className="w-4 h-4 mr-2" />
                               Edit Bill
                             </DropdownMenuItem>

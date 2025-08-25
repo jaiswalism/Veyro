@@ -14,7 +14,7 @@ import Reports from "./pages/Reports";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
-import CreateBillPage from "./pages/CreateBill"; // Import the new page
+import CreateBillPage from "./pages/CreateBill";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +34,8 @@ const App = () => (
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/clients" element={<Clients />} />
                     <Route path="/bills" element={<Bills />} />
-                    <Route path="/bills/new" element={<CreateBillPage />} /> {/* Add new route */}
+                    <Route path="/bills/new" element={<CreateBillPage />} />
+                    <Route path="/bills/edit/:billId" element={<CreateBillPage />} /> 
                     <Route path="/payments" element={<Payments />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/profile" element={<Profile />} />
