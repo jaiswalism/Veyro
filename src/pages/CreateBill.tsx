@@ -232,7 +232,7 @@ const InvoicePDFTemplate = ({ profile, client, billData, billId, onRendered }) =
             
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                  <thead >
-                    <tr style={{ backgroundColor: profile?.theme_color || '#1A2E44', color: 'white' }}>
+                    <tr style={{ backgroundColor: profile?.theme_color || '#1A2E44', color: 'white', borderTopLeftRadius: '10px', borderTopRightRadius: '10px'  }}>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', width: '34%', borderTopLeftRadius: '8px' }}>DESCRIPTION</th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', width: '18%' }}>PARTY</th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', width: '18%' }}>CHALLAN NO.</th>
@@ -428,6 +428,7 @@ export default function CreateBillPage() {
     const searchParams = new URLSearchParams(location.search);
     if (searchParams.get('download') === 'true' && profile && selectedClient) {
       handleDownload();
+      // Remove the download param from URL to prevent re-downloading on refresh
       const newUrl = location.pathname;
       navigate(newUrl, { replace: true });
     }

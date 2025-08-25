@@ -40,7 +40,7 @@ export default function Payments() {
 
   const fetchData = async () => {
     setLoading(true)
-    const { data: billsData, error: billsError } = await supabase.from("bills").select("*")
+    const { data: billsData, error: billsError } = await supabase.from("bills").select("*").order('id', { ascending: false });
     const { data: paymentsData, error: paymentsError } = await supabase.from("payments").select("*")
 
     if (billsError || paymentsError) {

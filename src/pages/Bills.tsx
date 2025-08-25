@@ -43,7 +43,8 @@ export default function Bills() {
 
   const fetchBills = async () => {
     setLoading(true)
-    const { data, error } = await supabase.from("bills").select("*")
+    // Fetch bills and order by ID in descending order
+    const { data, error } = await supabase.from("bills").select("*").order('id', { ascending: false });
 
     if (error) {
       toast({
