@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { useForm, useFieldArray, Controller, UseFormReturn } from "react-hook-form";
+import React, { useEffect, useState, useCallback } from "react";
+import ReactDOM from 'react-dom/client';
+import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
@@ -11,15 +12,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
 import { Trash2, Save, Download, Plus } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate, useParams } from "react-router-dom";
-// import { generateInvoicePdf } from "@/lib/pdfGenerator";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import html2pdf from 'html2pdf.js';
 
-// Define types from Supabase schema
 type Client = Database['public']['Tables']['clients']['Row'];
 type Profile = Database['public']['Tables']['profiles']['Row'];
-type Bill = Database['public']['Tables']['bills']['Row'];
 
-// Zod schema for validation
 const serviceSchema = z.object({
   party: z.string().optional().nullable(),
   challan_number: z.string().optional().nullable(),
@@ -39,20 +37,17 @@ const billSchema = z.object({
 
 type BillFormData = z.infer<typeof billSchema>;
 
-// This is the visual component for the invoice
+// The interactive template you see on the screen
 const InvoiceTemplate = ({ profile, client, clients, formMethods, isEditMode, billId }) => {
     const { register, control, watch, formState: { errors } } = formMethods;
     const { fields, append, remove } = useFieldArray({ control, name: "services" });
-
     const watchedServices = watch("services", []);
     const watchedAdvance = watch("advance");
-
     const subtotal = watchedServices.reduce((acc, service) => acc + (service.amount || 0) * (service.trips || 1), 0);
     const totalAmount = subtotal - (watchedAdvance || 0);
 
     return (
-        <div id="invoice-content" className="max-w-4xl mx-auto bg-white p-12 rounded-lg shadow-lg border space-y-10">
-            {/* Header */}
+        <div className="max-w-4xl mx-auto bg-white p-12 rounded-lg shadow-lg border space-y-10">
             <header className="flex justify-between items-start pb-6 border-b-2" style={{ borderColor: profile?.theme_color || '#1A2E44' }}>
                 <div>
                     {profile?.logo_url ? (
@@ -60,26 +55,25 @@ const InvoiceTemplate = ({ profile, client, clients, formMethods, isEditMode, bi
                     ) : (
                         <h1 className="text-3xl font-bold text-gray-800">{profile?.company_name || "[Your Company Name]"}</h1>
                     )}
-                </div>
-                <div className="text-right">
-                    <h1 className="text-5xl font-bold" style={{ color: profile?.theme_color || '#1A2E44' }}>INVOICE</h1>
                      <div className="text-gray-500 text-sm mt-2">
                         <p>{profile?.address || "[Your Address]"}</p>
                         <p>{profile?.phone || "[Your Phone]"}</p>
                         {profile?.gst_registered && <p>GSTIN: {profile?.gst_number || "[Your GSTIN]"}</p>}
                     </div>
                 </div>
+                <div className="text-right">
+                    <h1 className="text-5xl font-bold" style={{ color: profile?.theme_color || '#1A2E44' }}>INVOICE</h1>
+                </div>
             </header>
 
-            {/* Billing Info */}
             <div className="grid grid-cols-2 gap-12">
                 <div>
                     <h2 className="text-sm font-bold text-gray-500 mb-2">BILL TO</h2>
-                     <Controller
+                    <Controller
                         name="client_id"
                         control={control}
                         render={({ field }) => (
-                             <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Select a client" />
                                 </SelectTrigger>
@@ -97,23 +91,22 @@ const InvoiceTemplate = ({ profile, client, clients, formMethods, isEditMode, bi
                     )}
                     {errors.client_id && <p className="text-red-500 text-xs mt-1">{errors.client_id.message}</p>}
                 </div>
-                <div className="text-sm space-y-2">
-                    <div className="flex justify-between">
+                <div className="text-sm space-y-2 text-right">
+                    <div className="grid grid-cols-2">
                         <span className="font-bold text-gray-600">INVOICE #</span>
-                        <span>{isEditMode ? billId : "PREVIEW"}</span>
+                        <span className="text-gray-800">{isEditMode ? billId : "PREVIEW"}</span>
                     </div>
-                     <div className="flex justify-between items-center">
+                     <div className="grid grid-cols-2 items-center">
                         <span className="font-bold text-gray-600">BILL DATE</span>
-                        <Input type="date" {...register("date")} className="text-right border-none p-0 h-auto w-32" />
+                        <Input type="date" {...register("date")} className="text-right" />
                     </div>
-                     <div className="flex justify-between">
+                     <div className="grid grid-cols-2">
                         <span className="font-bold text-gray-600">DUE DATE</span>
-                        <span>{watch("date")}</span>
+                        <span className="text-gray-800">{watch("date")}</span>
                     </div>
                 </div>
             </div>
 
-            {/* Services Table */}
             <div>
                 <div className="grid grid-cols-12 gap-4 text-xs font-bold text-white py-2 px-4 rounded-t-md" style={{ backgroundColor: profile?.theme_color || '#1A2E44' }}>
                     <div className="col-span-4">DESCRIPTION</div>
@@ -123,13 +116,14 @@ const InvoiceTemplate = ({ profile, client, clients, formMethods, isEditMode, bi
                     <div className="col-span-2 text-right">AMOUNT</div>
                     <div className="col-span-1"></div>
                 </div>
-                <div className="border-l border-r">
+                <div className="border-l border-r rounded-b-md">
                     {fields.map((field, index) => (
-                        <div key={field.id} className="grid grid-cols-12 gap-4 items-start p-3 border-b">
+                        <div key={field.id} className="grid grid-cols-12 gap-4 items-center p-3 border-b last:border-b-0">
                             <div className="col-span-4">
                                 <Input {...register(`services.${index}.vehicle`)} placeholder="Vehicle No." className="text-sm mb-1"/>
-                                <div className="flex gap-1">
+                                <div className="flex gap-1 items-center">
                                     <Input {...register(`services.${index}.from`)} placeholder="From" className="text-sm"/>
+                                    <span>-</span>
                                     <Input {...register(`services.${index}.to`)} placeholder="To" className="text-sm"/>
                                 </div>
                             </div>
@@ -137,7 +131,7 @@ const InvoiceTemplate = ({ profile, client, clients, formMethods, isEditMode, bi
                             <Input {...register(`services.${index}.challan_number`)} placeholder="Challan No." className="col-span-2 text-sm"/>
                             <Input type="number" {...register(`services.${index}.trips`)} className="col-span-1 text-sm text-center"/>
                             <Input type="number" {...register(`services.${index}.amount`)} className="col-span-2 text-sm text-right"/>
-                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="col-span-1 text-red-500 hover:text-red-700 remove-btn">
+                            <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="col-span-1 text-red-500 hover:text-red-700">
                                 <Trash2 className="h-4 w-4" />
                             </Button>
                         </div>
@@ -148,7 +142,6 @@ const InvoiceTemplate = ({ profile, client, clients, formMethods, isEditMode, bi
                 </Button>
             </div>
 
-            {/* Totals */}
             <div className="flex justify-end">
                 <div className="w-1/2 space-y-2 text-sm">
                     <div className="flex justify-between">
@@ -170,12 +163,126 @@ const InvoiceTemplate = ({ profile, client, clients, formMethods, isEditMode, bi
     );
 };
 
+// A clean, static component exclusively for PDF generation
+const InvoicePDFTemplate = ({ profile, client, billData, billId, onRendered }) => {
+    useEffect(() => {
+        if (onRendered) onRendered();
+    }, [onRendered]);
+
+    const subtotal = billData.services.reduce((acc, service) => acc + (service.amount || 0) * (service.trips || 1), 0);
+    const totalAmount = subtotal - (billData.advance || 0);
+
+    return (
+        <div style={{ fontFamily: 'sans-serif', fontSize: '14px', color: '#374151' }}>
+            <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '24px', borderBottom: `2px solid ${profile?.theme_color || '#1A2E44'}` }}>
+                <div style={{ textAlign: 'left' }}>
+                    {profile?.logo_url ? <img src={profile.logo_url} alt="Logo" style={{ height: '64px', objectFit: 'contain', marginBottom: '16px' }} /> : <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>{profile?.company_name}</h1>}
+                    <div style={{ fontSize: '12px', color: '#6B7280' }}>
+                        <p style={{ margin: 0 }}>{profile?.address}</p>
+                        <p style={{ margin: '4px 0 0 0' }}>{profile?.phone}</p>
+                        {profile?.gst_registered && <p style={{ margin: '4px 0 0 0' }}>GSTIN: {profile?.gst_number}</p>}
+                    </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: profile?.theme_color || '#1A2E44', margin: 0, lineHeight: '1' }}>INVOICE</h1>
+                </div>
+            </header>
+
+            <table style={{ width: '100%', marginTop: '40px', marginBottom: '40px', fontSize: '14px' }}>
+                <tbody>
+                    <tr>
+                        <td style={{ verticalAlign: 'top', width: '50%' }}>
+                            <p style={{ fontWeight: 'bold', color: '#6B7280', marginBottom: '8px', margin: 0 }}>BILL TO</p>
+                            <p style={{ fontWeight: '600', fontSize: '18px', margin: '4px 0 0 0' }}>{client?.name}</p>
+                            <p style={{ color: '#6B7280', margin: '4px 0 0 0' }}>{client?.address}</p>
+                            <p style={{ color: '#6B7280', margin: '4px 0 0 0' }}>{client?.contact}</p>
+                        </td>
+                        <td style={{ verticalAlign: 'top', width: '50%'}}>
+                            <table style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                                <tbody>
+                                    <tr>
+                                        <td style={{ paddingBottom: '8px', fontWeight: 'bold', color: '#6B7280', paddingRight: '16px' }}>INVOICE #</td>
+                                        <td style={{ paddingBottom: '8px' }}>{billId || 'PREVIEW'}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style={{ paddingBottom: '8px', fontWeight: 'bold', color: '#6B7280', paddingRight: '16px' }}>BILL DATE</td>
+                                        <td style={{ paddingBottom: '8px' }}>{billData.date}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style={{ fontWeight: 'bold', color: '#6B7280', paddingRight: '16px' }}>DUE DATE</td>
+                                        <td>{billData.date}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                 <thead >
+                    <tr style={{ backgroundColor: profile?.theme_color || '#1A2E44', color: 'white' }}>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', width: '34%', borderTopLeftRadius: '8px' }}>DESCRIPTION</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', width: '18%' }}>PARTY</th>
+                        <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', width: '18%' }}>CHALLAN NO.</th>
+                        <th style={{ padding: '12px', textAlign: 'center', fontSize: '12px', fontWeight: 'bold', width: '10%' }}>TRIPS</th>
+                        <th style={{ padding: '12px', textAlign: 'right', fontSize: '12px', fontWeight: 'bold', width: '20%', borderTopRightRadius: '8px' }}>AMOUNT</th>
+                    </tr>
+                 </thead>
+                 <tbody>
+                    {billData.services.map((service, index) => (
+                        <tr key={index} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                            <td style={{ padding: '12px', verticalAlign: 'top' }}>
+                                <p style={{ fontWeight: '500', fontSize: '14px', margin: 0 }}>{service.vehicle}</p>
+                                <p style={{ fontSize: '12px', color: '#6B7280', margin: '4px 0 0 0' }}>{service.from} - {service.to}</p>
+                            </td>
+                            <td style={{ padding: '12px', verticalAlign: 'top', fontSize: '14px' }}>{service.party}</td>
+                            <td style={{ padding: '12px', verticalAlign: 'top', fontSize: '14px' }}>{service.challan_number}</td>
+                            <td style={{ padding: '12px', verticalAlign: 'top', textAlign: 'center', fontSize: '14px' }}>{service.trips}</td>
+                            <td style={{ padding: '12px', verticalAlign: 'top', textAlign: 'right', fontSize: '14px' }}>₹{service.amount?.toLocaleString('en-IN')}</td>
+                        </tr>
+                    ))}
+                 </tbody>
+            </table>
+
+            <table style={{ width: '100%', marginTop: '24px' }}>
+                <tbody>
+                    <tr>
+                        <td style={{ width: '50%' }}></td>
+                        <td style={{ width: '50%' }}>
+                            <table style={{ width: '100%' }}>
+                                <tbody>
+                                    <tr>
+                                        <td style={{ paddingBottom: '8px', fontWeight: '600', color: '#6B7280' }}>Subtotal:</td>
+                                        <td style={{ paddingBottom: '8px', textAlign: 'right' }}>₹{subtotal.toLocaleString('en-IN')}</td>
+                                    </tr>
+                                    <tr>
+                                        <td style={{ paddingBottom: '8px', fontWeight: '600', color: '#6B7280' }}>Advance:</td>
+                                        <td style={{ paddingBottom: '8px', textAlign: 'right' }}>₹{(billData.advance || 0).toLocaleString('en-IN')}</td>
+                                    </tr>
+                                    <tr>
+                                        <td colSpan={2} style={{ paddingTop: '8px', borderTop: '1px solid #E5E7EB' }}></td>
+                                    </tr>
+                                    <tr>
+                                        <td style={{ paddingTop: '8px', fontWeight: 'bold', fontSize: '20px', color: profile?.theme_color || '#1A2E44' }}>Total Amount:</td>
+                                        <td style={{ paddingTop: '8px', textAlign: 'right', fontWeight: 'bold', fontSize: '20px', color: profile?.theme_color || '#1A2E44' }}>₹{totalAmount.toLocaleString('en-IN')}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    );
+};
 
 export default function CreateBillPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const { billId } = useParams();
+  const location = useLocation();
   const isEditMode = Boolean(billId);
 
   const [clients, setClients] = useState<Client[]>([]);
@@ -220,7 +327,6 @@ export default function CreateBillPage() {
       setSelectedClient(client || null);
   }, [watchedClientId, clients]);
 
-
   const onSaveBill = async (data: BillFormData) => {
     if (!user || !selectedClient) {
         toast({ title: "Error", description: "Please select a client.", variant: "destructive" });
@@ -259,30 +365,57 @@ export default function CreateBillPage() {
     }
   };
 
-  const onDownloadPdf = () => {
-      const currentBillData = formMethods.getValues();
-      if (!selectedClient || !profile) {
-          toast({ title: "Missing Information", description: "Please select a client and complete your profile first.", variant: "destructive" });
-          return;
-      }
-      const subtotal = currentBillData.services.reduce((acc, service) => acc + (service.amount || 0) * (service.trips || 1), 0);
-      const totalAmount = subtotal - (currentBillData.advance || 0);
+  const onDownloadPdf = useCallback(async () => {
+    const currentBillData = formMethods.getValues();
+    if (!selectedClient || !profile) {
+        toast({ title: "Missing Information", description: "Please select a client and ensure profile is complete.", variant: "destructive" });
+        return;
+    }
 
-      const billForPdf: Bill = {
-          id: isEditMode ? parseInt(billId) : 0,
-          created_at: new Date().toISOString(),
-          client_id: selectedClient.id,
-          client: selectedClient.name,
-          date: currentBillData.date,
-          services: currentBillData.services,
-          advance: currentBillData.advance || 0,
-          amount: totalAmount,
-          status: 'unpaid',
-          user_id: user.id
-      };
-      
-      // generateInvoicePdf(billForPdf, selectedClient, profile);
-  }
+    const pdfContainer = document.createElement('div');
+    document.body.appendChild(pdfContainer);
+    const root = ReactDOM.createRoot(pdfContainer);
+    
+    const renderPromise = new Promise<void>((resolve) => {
+        root.render(
+            <React.StrictMode>
+                <InvoicePDFTemplate
+                    profile={profile}
+                    client={selectedClient}
+                    billData={currentBillData}
+                    billId={billId}
+                    onRendered={() => resolve()}
+                />
+            </React.StrictMode>
+        );
+    });
+
+    await renderPromise;
+
+    const opt = {
+      margin: 0.5,
+      filename: `invoice-${billId || 'new'}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+
+    await html2pdf().from(pdfContainer).set(opt).save();
+
+    root.unmount();
+    document.body.removeChild(pdfContainer);
+
+  }, [billId, profile, selectedClient, toast, formMethods]);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('download') === 'true' && profile && selectedClient) {
+      const timer = setTimeout(() => {
+        onDownloadPdf();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [location.search, profile, selectedClient, onDownloadPdf]);
 
   return (
     <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
