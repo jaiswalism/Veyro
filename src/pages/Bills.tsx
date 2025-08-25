@@ -29,13 +29,9 @@ import { supabase } from "@/integrations/supabase/client"
 import { Database } from "@/integrations/supabase/types"
 import { useToast } from "@/hooks/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
-import { useAuth } from "@/contexts/AuthContext"
-import { generateInvoicePdf } from "@/lib/pdfGenerator"
 import { useNavigate } from "react-router-dom"
 
 type Bill = Database['public']['Tables']['bills']['Row'];
-type Client = Database['public']['Tables']['clients']['Row'];
-type Profile = Database['public']['Tables']['profiles']['Row'];
 
 export default function Bills() {
   const [searchTerm, setSearchTerm] = useState("")
@@ -43,7 +39,6 @@ export default function Bills() {
   const [bills, setBills] = useState<Bill[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
-  const { user } = useAuth();
   const navigate = useNavigate();
 
   const fetchBills = async () => {
@@ -85,30 +80,9 @@ export default function Bills() {
     }
   }
 
-  const handleDownloadPdf = async (bill: Bill) => {
-    if (!user) {
-        toast({ title: "Error", description: "You must be logged in.", variant: "destructive" });
-        return;
-    }
-    const { data: client, error: clientError } = await supabase
-        .from('clients')
-        .select('*')
-        .eq('id', bill.client_id)
-        .single();
-
-    const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-    if (clientError || profileError || !client || !profile) {
-        toast({ title: "Error fetching data for PDF", description: clientError?.message || profileError?.message || "Could not find client or profile.", variant: "destructive" });
-        return;
-    }
-
-    generateInvoicePdf(bill, client, profile);
-  }
+  const handleDownloadPdf = (billId: number) => {
+    navigate(`/bills/edit/${billId}?download=true`);
+  };
 
   const filteredBills = bills.filter(bill => {
     const matchesSearch = bill.id.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -189,7 +163,7 @@ export default function Bills() {
                   <TableHead>Client</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -227,35 +201,33 @@ export default function Bills() {
                         {bill.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleDownloadPdf(bill)}>
-                          <Download className="w-4 h-4 mr-1" />
-                          PDF
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate(`/bills/edit/${bill.id}`)}>
-                              <Pencil className="w-4 h-4 mr-2" />
-                              Edit Bill
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => navigate(`/bills/edit/${bill.id}`)}>
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Edit Bill
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownloadPdf(bill.id)}>
+                            <Download className="w-4 h-4 mr-2" />
+                            Download PDF
+                          </DropdownMenuItem>
+                          {bill.status !== "paid" && (
+                            <DropdownMenuItem>
+                              Mark as Paid
                             </DropdownMenuItem>
-                            {bill.status !== "paid" && (
-                              <DropdownMenuItem>
-                                Mark as Paid
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(bill.id)}>
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete Bill
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                          )}
+                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(bill.id)}>
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Bill
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))}
