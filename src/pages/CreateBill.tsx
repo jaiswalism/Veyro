@@ -1,3 +1,5 @@
+// src/pages/CreateBill.tsx
+
 import { useEffect, useState } from "react";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Database } from "@/integrations/supabase/types";
@@ -27,14 +28,15 @@ const serviceSchema = z.object({
   vehicle: z.string().min(1, "Vehicle is required"),
   from: z.string().min(1, "From is required"),
   to: z.string().min(1, "To is required"),
-  trips: z.preprocess(val => (val ? Number(val) : 1), z.number().min(1, "Trips must be at least 1")),
-  amount: z.preprocess(val => (val ? Number(val) : 0), z.number().min(0, "Amount must be positive")),
+  trips: z.coerce.number().min(1, "Trips must be at least 1").default(1),
+  amount: z.coerce.number().min(0, "Amount must be positive").default(0),
 });
 
 const billSchema = z.object({
   client_id: z.string().min(1, "Client is required"),
   date: z.string().min(1, "Date is required"),
-  advance: z.preprocess(val => (val ? Number(val) : 0), z.number().min(0).optional().nullable()),
+  due_date: z.string().min(1, "Due date is required"),
+  advance: z.coerce.number().min(0).optional().nullable().default(0),
   services: z.array(serviceSchema).min(1, "At least one service is required"),
 });
 
@@ -51,16 +53,16 @@ export default function CreateBillPage() {
   const {
     register,
     handleSubmit,
-    reset,
     control,
     watch,
     setValue,
     getValues,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<BillFormData>({
     resolver: zodResolver(billSchema),
     defaultValues: {
       date: new Date().toISOString().split("T")[0],
+      due_date: new Date().toISOString().split("T")[0],
       services: [{ party: "", challan_number: "", vehicle: "", from: "", to: "", trips: 1, amount: 0 }],
       advance: 0,
     },
@@ -71,11 +73,20 @@ export default function CreateBillPage() {
     name: "services",
   });
 
+  // --- THIS IS THE FIX ---
+  // Watch the form values
   const watchedServices = watch("services");
   const watchedAdvance = watch("advance");
-  
-  const subtotal = watchedServices.reduce((acc, service) => acc + (service.amount || 0) * (service.trips || 1), 0);
-  const totalAmount = subtotal - (watchedAdvance || 0);
+
+  // Perform calculations directly, ensuring values are treated as numbers
+  const subtotal = watchedServices.reduce((acc, service) => {
+    const amount = Number(service.amount) || 0;
+    const trips = Number(service.trips) || 1;
+    return acc + (amount * trips);
+  }, 0);
+
+  const totalAmount = subtotal - (Number(watchedAdvance) || 0);
+  // --- END OF FIX ---
 
   useEffect(() => {
     const fetchData = async () => {
@@ -92,7 +103,7 @@ export default function CreateBillPage() {
   }, [user]);
 
   const handleClientChange = (clientId: string) => {
-      setValue("client_id", clientId);
+      setValue("client_id", clientId, { shouldValidate: true });
       const client = clients.find(c => c.id.toString() === clientId);
       setSelectedClient(client || null);
   }
@@ -104,6 +115,7 @@ export default function CreateBillPage() {
     }
 
     const billData = {
+      user_id: user.id,
       client_id: selectedClient.id,
       client: selectedClient.name,
       date: data.date,
@@ -130,14 +142,13 @@ export default function CreateBillPage() {
           return;
       }
 
-      // Create a mock bill object to pass to the generator
       const billForPdf: Bill = {
-          id: 0, // Placeholder
+          id: Date.now(),
           created_at: new Date().toISOString(),
           client_id: selectedClient.id,
           client: selectedClient.name,
           date: currentBillData.date,
-          services: currentBillData.services,
+          services: currentBillData.services as any,
           advance: currentBillData.advance || 0,
           amount: totalAmount,
           status: 'unpaid',
@@ -147,35 +158,35 @@ export default function CreateBillPage() {
   }
 
   return (
-    <div className="bg-gray-50 p-4 sm:p-8">
-      <div className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+    <div className="bg-muted/40 -m-8 p-8 min-h-screen">
+      <form onSubmit={handleSubmit(onSaveBill)} className="max-w-5xl mx-auto bg-background p-8 rounded-lg shadow-sm border">
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex justify-between items-start mb-10">
           <div>
             {profile?.logo_url ? (
-              <img src={profile.logo_url} alt="Company Logo" className="h-16" />
+              <img src={profile.logo_url} alt="Company Logo" className="h-12 max-w-xs"/>
             ) : (
-              <h1 className="text-3xl font-bold text-gray-800">{profile?.company_name || "Your Company"}</h1>
+              <h1 className="text-2xl font-bold text-foreground">{profile?.company_name || "Your Company"}</h1>
             )}
-            <div className="text-gray-500 text-sm mt-2">
-              <p>{profile?.address}</p>
+            <div className="text-sm text-muted-foreground mt-2">
               <p>{profile?.phone}</p>
-              {profile?.gst_registered && <p>GSTIN: {profile?.gst_number}</p>}
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-700" style={{ color: profile?.theme_color || '#1A2E44' }}>INVOICE</h1>
+          <h1 className="text-4xl font-bold text-right" style={{ color: profile?.theme_color || 'hsl(var(--primary))' }}>
+            {profile?.company_name || "INVOICE"}
+          </h1>
         </div>
 
         {/* Billing Info */}
-        <div className="grid grid-cols-2 gap-8 mb-8">
-          <div>
-            <h2 className="text-sm font-bold text-gray-500 mb-2">BILL TO</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+          <div className="space-y-2">
+            <Label className="text-muted-foreground font-semibold">BILL TO</Label>
             <Controller
                 name="client_id"
                 control={control}
                 render={({ field }) => (
                     <Select onValueChange={handleClientChange} value={field.value}>
-                        <SelectTrigger className="w-full">
+                        <SelectTrigger>
                             <SelectValue placeholder="Select a client" />
                         </SelectTrigger>
                         <SelectContent>
@@ -185,28 +196,29 @@ export default function CreateBillPage() {
                 )}
             />
             {selectedClient && (
-                <div className="text-gray-600 text-sm mt-2">
-                    <p>{selectedClient.address}</p>
+                <div className="text-sm text-muted-foreground pt-2 space-y-1">
+                    {selectedClient.company && <p className="font-medium text-foreground">{selectedClient.company}</p>}
                     <p>{selectedClient.contact}</p>
+                    {selectedClient.gst && <p>GST: {selectedClient.gst}</p>}
                 </div>
             )}
-            {errors.client_id && <p className="text-red-500 text-xs mt-1">{errors.client_id.message}</p>}
+            {errors.client_id && <p className="text-destructive text-xs mt-1">{errors.client_id.message}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-4">
-              <div>
-                  <Label className="text-sm font-bold text-gray-500">BILL DATE</Label>
-                  <Input type="date" {...register("date")} className="mt-1" />
-              </div>
-              <div>
-                  <Label className="text-sm font-bold text-gray-500">DUE DATE</Label>
-                  <Input type="date" value={watch("date")} readOnly className="mt-1 bg-gray-100" />
-              </div>
+          <div className="space-y-2">
+              <Label htmlFor="date" className="text-muted-foreground font-semibold">BILL DATE</Label>
+              <Input id="date" type="date" {...register("date")} />
+              {errors.date && <p className="text-destructive text-xs mt-1">{errors.date.message}</p>}
+          </div>
+          <div className="space-y-2">
+              <Label htmlFor="due_date" className="text-muted-foreground font-semibold">DUE DATE</Label>
+              <Input id="due_date" type="date" {...register("due_date")} />
+              {errors.due_date && <p className="text-destructive text-xs mt-1">{errors.due_date.message}</p>}
           </div>
         </div>
 
         {/* Services Table */}
         <div className="mb-8">
-          <div className="grid grid-cols-12 gap-2 text-xs font-bold text-gray-500 border-b pb-2 mb-2">
+          <div className="grid grid-cols-12 gap-4 text-xs font-semibold text-muted-foreground border-b pb-2 mb-4">
             <div className="col-span-4">DESCRIPTION</div>
             <div className="col-span-2">PARTY</div>
             <div className="col-span-2">CHALLAN NO.</div>
@@ -215,53 +227,54 @@ export default function CreateBillPage() {
             <div className="col-span-1"></div>
           </div>
           {fields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-12 gap-2 items-start mb-2">
-              <div className="col-span-4">
-                <Input {...register(`services.${index}.vehicle`)} placeholder="Vehicle No." className="text-sm mb-1"/>
-                <div className="flex gap-1">
+            <div key={field.id} className="grid grid-cols-12 gap-4 items-start mb-3">
+              <div className="col-span-4 space-y-2">
+                 <Input {...register(`services.${index}.vehicle`)} placeholder="Vehicle No." className="text-sm"/>
+                 <div className="flex gap-2">
                     <Input {...register(`services.${index}.from`)} placeholder="From" className="text-sm"/>
                     <Input {...register(`services.${index}.to`)} placeholder="To" className="text-sm"/>
-                </div>
+                 </div>
               </div>
               <Input {...register(`services.${index}.party`)} placeholder="Party Name" className="col-span-2 text-sm"/>
               <Input {...register(`services.${index}.challan_number`)} placeholder="Challan No." className="col-span-2 text-sm"/>
-              <Input type="number" {...register(`services.${index}.trips`)} className="col-span-1 text-sm text-center"/>
-              <Input type="number" {...register(`services.${index}.amount`)} className="col-span-2 text-sm text-right"/>
-              <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="col-span-1 text-red-500 hover:text-red-700">
+              <Input type="number" {...register(`services.${index}.trips`)} defaultValue={1} className="col-span-1 text-sm text-center"/>
+              <Input type="number" {...register(`services.${index}.amount`)} placeholder="0" className="col-span-2 text-sm text-right"/>
+              <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)} className="col-span-1 text-muted-foreground hover:text-destructive">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
           ))}
-          <Button type="button" variant="outline" size="sm" onClick={() => append({ party: "", challan_number: "", vehicle: "", from: "", to: "", trips: 1, amount: 0 })} className="mt-2">
+          {errors.services && <p className="text-destructive text-xs mt-2">{errors.services?.message || errors.services?.root?.message}</p>}
+          <Button type="button" variant="outline" size="sm" onClick={() => append({ party: "", challan_number: "", vehicle: "", from: "", to: "", trips: 1, amount: 0 })} className="mt-4">
             <Plus className="h-4 w-4 mr-2"/> Add Service
           </Button>
         </div>
-
+        
         {/* Totals */}
-        <div className="flex justify-end mb-8">
-            <div className="w-1/2">
-                <div className="flex justify-between py-2">
-                    <span className="font-bold text-gray-600">Subtotal:</span>
-                    <span className="text-gray-800">₹{subtotal.toLocaleString('en-IN')}</span>
+        <div className="flex justify-end mb-10">
+            <div className="w-full max-w-sm space-y-3">
+                <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Subtotal:</span>
+                    <span className="font-medium">₹{subtotal.toLocaleString('en-IN')}</span>
                 </div>
-                 <div className="flex justify-between py-2">
-                    <Label htmlFor="advance" className="font-bold text-gray-600 self-center">Advance:</Label>
-                    <Input id="advance" type="number" {...register("advance")} className="w-24 text-right" />
+                 <div className="flex justify-between items-center">
+                    <Label htmlFor="advance" className="text-muted-foreground">Advance:</Label>
+                    <Input id="advance" type="number" {...register("advance")} className="w-32 text-right font-medium" placeholder="0" />
                 </div>
                 <div className="border-t my-2"></div>
-                <div className="flex justify-between py-2">
-                    <span className="font-bold text-lg" style={{ color: profile?.theme_color || '#1A2E44' }}>Total Amount:</span>
-                    <span className="font-bold text-lg" style={{ color: profile?.theme_color || '#1A2E44' }}>₹{totalAmount.toLocaleString('en-IN')}</span>
+                <div className="flex justify-between items-center text-xl font-bold" style={{ color: profile?.theme_color || 'hsl(var(--primary))' }}>
+                    <Label>Total Amount:</Label>
+                    <span>₹{totalAmount.toLocaleString('en-IN')}</span>
                 </div>
             </div>
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onDownloadPdf}><Download className="h-4 w-4 mr-2"/> Download PDF</Button>
-            <Button onClick={handleSubmit(onSaveBill)}><Save className="h-4 w-4 mr-2"/> Save Bill</Button>
+        <div className="flex justify-end gap-2 border-t pt-6 mt-6">
+            <Button type="button" variant="outline" onClick={onDownloadPdf} disabled={isSubmitting}><Download className="h-4 w-4 mr-2"/> Download PDF</Button>
+            <Button type="submit" disabled={isSubmitting}><Save className="h-4 w-4 mr-2"/>{isSubmitting ? "Saving..." : "Save Bill"}</Button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
