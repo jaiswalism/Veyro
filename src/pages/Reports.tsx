@@ -89,7 +89,7 @@ export default function Reports() {
   const { toast } = useToast()
   
   // State for custom report generator and the new client dropdown
-  const [reportType, setReportType] = useState("monthly_income");
+  const [reportType, setReportType] = useState("outstanding_in_range"); // Corrected this line
   const [dateRange, setDateRange] = useState("this_year");
   const [selectedClientForCustom, setSelectedClientForCustom] = useState("all");
   const [selectedClientForCard, setSelectedClientForCard] = useState("all");
@@ -198,7 +198,7 @@ export default function Reports() {
         return;
     }
 
-    const { data: bills, error: billsError } = await supabase.from("bills").select("*");
+    const { data: bills, error: billsError } = await supabase.from("bills").select("*").order('id', { ascending: false });
     const { data: clients, error: clientsError } = await supabase.from("clients").select("*");
 
     if (billsError || clientsError || !bills || !clients) {
@@ -229,7 +229,7 @@ export default function Reports() {
             break;
         case 'outstanding_payments':
             title = "Outstanding Payments";
-            headers = [{ key: 'id', label: 'Bill ID' }, { key: 'client', label: 'Client' }, { key: 'due_date', label: 'Due Date' }, { key: 'amount', label: 'Amount' }];
+            headers = [{ key: 'id', label: 'Bill ID' }, { key: 'client', label: 'Client' }, { key: 'date', label: 'Bill Date' }, { key: 'due_date', label: 'Due Date' }, { key: 'amount', label: 'Amount' }];
             let outstandingBills = bills.filter(b => b.status !== 'paid');
             if (clientId !== "all") {
                 outstandingBills = outstandingBills.filter(b => b.client_id === parseInt(clientId));
@@ -300,16 +300,40 @@ export default function Reports() {
   };
 
   const handleCustomReport = async () => {
-    let { data, error } = await supabase.from('bills').select('*')
+    let { data: bills, error } = await supabase.from('bills').select('*')
         .gte('date', customStartDate)
-        .lte('date', customEndDate);
+        .lte('date', customEndDate)
+        .order('id', { ascending: false });
 
-    if (error || !data) {
-        toast({ title: "Error fetching data", description: error.message, variant: "destructive" });
+    if (error || !bills) {
+        toast({ title: "Error fetching data", description: error?.message, variant: "destructive" });
+        return;
+    }
+
+    let dataToExport: any[] = [];
+    let headers: { key: string, label: string }[] = [];
+    let title = "";
+    const filename = `${reportType}_${customStartDate}_to_${customEndDate}`;
+
+    if (reportType === 'outstanding_in_range') {
+        title = `Outstanding Bills (${customStartDate} to ${customEndDate})`;
+        headers = [{ key: 'id', label: 'Bill ID' }, { key: 'client', label: 'Client' }, { key: 'date', label: 'Bill Date' }, { key: 'due_date', label: 'Due Date' }, { key: 'amount', label: 'Amount' }];
+        dataToExport = bills.filter(b => b.status !== 'paid').map(b => ({...b, amount: formatCurrency(b.amount)}));
+    } else if (reportType === 'service_history_in_range') {
+        title = `Service History (${customStartDate} to ${customEndDate})`;
+        headers = [{key: 'bill_id', label: 'Bill ID'}, {key: 'date', label: 'Date'}, {key: 'client', label: 'Client'}, {key: 'vehicle', label: 'Vehicle'}, {key: 'from', label: 'From'}, {key: 'to', label: 'To'}, {key: 'amount', label: 'Amount'}];
+        dataToExport = bills.flatMap(b => (b.services as any[])?.map(s => ({ bill_id: b.id, date: b.date, client: b.client, ...s, amount: formatCurrency(s.amount) })) || []);
+    } else {
+        toast({ title: "Error", description: "Invalid report type selected.", variant: "destructive"});
         return;
     }
     
-    // ... logic for custom report generation
+    if (dataToExport.length === 0) {
+        toast({ title: "No Data", description: "No data available to export for this selection." });
+        return;
+    }
+
+    generateAndDownloadPdf(title, filename, dataToExport, headers);
   };
 
   return (
@@ -375,32 +399,23 @@ export default function Reports() {
             <CardTitle className="text-foreground">Financial Reports</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div>
-                <h3 className="font-medium text-foreground">Monthly Income Summary</h3>
-                <p className="text-sm text-muted-foreground">Revenue breakdown by month</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => handleExport('monthly_income')}>
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            </div>
-            <div className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div>
-                <h3 className="font-medium text-foreground">Yearly Revenue Report</h3>
-                <p className="text-sm text-muted-foreground">Complete yearly financial overview</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => handleExport('yearly_revenue')}>
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            </div>
+            
             <div className="flex items-center justify-between p-4 border border-border rounded-lg">
               <div>
                 <h3 className="font-medium text-foreground">Outstanding Payments (All)</h3>
                 <p className="text-sm text-muted-foreground">All unpaid bills</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => handleExport('outstanding_payments', 'all')}>
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
+            <div className="flex items-center justify-between p-4 border border-border rounded-lg">
+              <div>
+                <h3 className="font-medium text-foreground">Service History</h3>
+                <p className="text-sm text-muted-foreground">Detailed service logs and routes</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => handleExport('service_history')}>
                 <Download className="w-4 h-4 mr-2" />
                 Export
               </Button>
@@ -438,16 +453,7 @@ export default function Reports() {
                     </select>
                 </div>
             </div>
-            <div className="flex items-center justify-between p-4 border border-border rounded-lg">
-              <div>
-                <h3 className="font-medium text-foreground">Service History</h3>
-                <p className="text-sm text-muted-foreground">Detailed service logs and routes</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => handleExport('service_history')}>
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
-            </div>
+            
             <div className="flex items-center justify-between p-4 border border-border rounded-lg">
               <div>
                 <h3 className="font-medium text-foreground">Client Performance</h3>
