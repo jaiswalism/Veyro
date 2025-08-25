@@ -31,6 +31,7 @@ const serviceSchema = z.object({
 const billSchema = z.object({
   client_id: z.string().min(1, "Client is required"),
   date: z.string().min(1, "Date is required"),
+  due_date: z.string().min(1, "Due date is required"),
   advance: z.preprocess(val => (val ? Number(val) : 0), z.number().min(0).optional().nullable()),
   services: z.array(serviceSchema).min(1, "At least one service is required"),
 });
@@ -50,7 +51,7 @@ const InvoiceTemplate = ({ profile, client, clients, formMethods, isEditMode, bi
         <div className="max-w-4xl mx-auto bg-white p-12 rounded-lg shadow-lg border space-y-10">
             <header className="flex justify-between items-start pb-6 border-b-2" style={{ borderColor: profile?.theme_color || '#1A2E44' }}>
                 <div>
-                    {profile?.logo_url ? (
+                    {profile?.display_logo && profile?.logo_url ? (
                         <img src={profile.logo_url} alt="Company Logo" className="h-16 object-contain" />
                     ) : (
                         <h1 className="text-3xl font-bold text-gray-800">{profile?.company_name || "[Your Company Name]"}</h1>
@@ -100,9 +101,9 @@ const InvoiceTemplate = ({ profile, client, clients, formMethods, isEditMode, bi
                         <span className="font-bold text-gray-600">BILL DATE</span>
                         <Input type="date" {...register("date")} className="text-right" />
                     </div>
-                     <div className="grid grid-cols-2">
+                     <div className="grid grid-cols-2 items-center">
                         <span className="font-bold text-gray-600">DUE DATE</span>
-                        <span className="text-gray-800">{watch("date")}</span>
+                        <Input type="date" {...register("due_date")} className="text-right" />
                     </div>
                 </div>
             </div>
@@ -176,7 +177,11 @@ const InvoicePDFTemplate = ({ profile, client, billData, billId, onRendered }) =
         <div style={{ fontFamily: 'sans-serif', fontSize: '14px', color: '#374151' }}>
             <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '24px', borderBottom: `2px solid ${profile?.theme_color || '#1A2E44'}` }}>
                 <div style={{ textAlign: 'left' }}>
-                    {profile?.logo_url ? <img src={profile.logo_url} alt="Logo" style={{ height: '64px', objectFit: 'contain', marginBottom: '16px' }} /> : <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>{profile?.company_name}</h1>}
+                    {profile?.display_logo && profile?.logo_url ? (
+                        <img src={profile.logo_url} alt="Logo" style={{ height: '64px', objectFit: 'contain', marginBottom: '16px' }} />
+                    ) : (
+                        <h1 style={{ fontSize: '24px', fontWeight: 'bold', margin: 0, color: profile?.theme_color || '#1A2E44' }}>{profile?.company_name}</h1>
+                    )}
                     <div style={{ fontSize: '12px', color: '#6B7280' }}>
                         <p style={{ margin: 0 }}>{profile?.address}</p>
                         <p style={{ margin: '4px 0 0 0' }}>{profile?.phone}</p>
@@ -184,7 +189,13 @@ const InvoicePDFTemplate = ({ profile, client, billData, billId, onRendered }) =
                     </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                    <h1 style={{ fontSize: '48px', fontWeight: 'bold', color: profile?.theme_color || '#1A2E44', margin: 0, lineHeight: '1' }}>INVOICE</h1>
+                    <h1 style={{ 
+                        fontSize: (profile?.display_logo && profile?.logo_url) ? '48px' : '36px', 
+                        fontWeight: 'bold', 
+                        color: (profile?.display_logo && profile?.logo_url) ? (profile?.theme_color || '#1A2E44') : '#6B7280', 
+                        margin: 0, 
+                        lineHeight: '1' 
+                    }}>INVOICE</h1>
                 </div>
             </header>
 
@@ -210,7 +221,7 @@ const InvoicePDFTemplate = ({ profile, client, billData, billId, onRendered }) =
                                     </tr>
                                     <tr>
                                         <td style={{ fontWeight: 'bold', color: '#6B7280', paddingRight: '16px' }}>DUE DATE</td>
-                                        <td>{billData.date}</td>
+                                        <td>{billData.due_date}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -221,7 +232,7 @@ const InvoicePDFTemplate = ({ profile, client, billData, billId, onRendered }) =
             
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                  <thead >
-                    <tr style={{ backgroundColor: profile?.theme_color || '#1A2E44', color: 'white' }}>
+                    <tr style={{ backgroundColor: profile?.theme_color || '#1A2E44', color: 'white', borderTopLeftRadius: '10px', borderTopRightRadius: '10px'  }}>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', width: '34%', borderTopLeftRadius: '8px' }}>DESCRIPTION</th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', width: '18%' }}>PARTY</th>
                         <th style={{ padding: '12px', textAlign: 'left', fontSize: '12px', fontWeight: 'bold', width: '18%' }}>CHALLAN NO.</th>
@@ -293,10 +304,13 @@ export default function CreateBillPage() {
     resolver: zodResolver(billSchema),
     defaultValues: {
       date: new Date().toISOString().split("T")[0],
+      due_date: new Date().toISOString().split("T")[0],
       services: [{ party: "", challan_number: "", vehicle: "", from: "", to: "", trips: 1, amount: 0 }],
       advance: 0,
     },
   });
+
+  const { handleSubmit } = formMethods;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -313,6 +327,7 @@ export default function CreateBillPage() {
               formMethods.reset({
                   ...billData,
                   client_id: billData.client_id.toString(),
+                  due_date: billData.due_date || billData.date,
                   services: Array.isArray(billData.services) ? billData.services : [],
               });
           }
@@ -327,7 +342,7 @@ export default function CreateBillPage() {
       setSelectedClient(client || null);
   }, [watchedClientId, clients]);
 
-  const onSaveBill = async (data: BillFormData) => {
+  const onSaveBill = useCallback(async (data: BillFormData, andThen?: () => void) => {
     if (!user || !selectedClient) {
         toast({ title: "Error", description: "Please select a client.", variant: "destructive" });
         return;
@@ -340,37 +355,36 @@ export default function CreateBillPage() {
       client_id: selectedClient.id,
       client: selectedClient.name,
       date: data.date,
+      due_date: data.due_date,
       services: data.services,
       advance: data.advance,
       amount: totalAmount,
       status: 'unpaid' as const,
     };
 
+    let error;
     if (isEditMode) {
-        const { error } = await supabase.from("bills").update(billData).eq("id", billId);
-        if (error) {
-            toast({ title: "Error updating bill", description: error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Bill Updated!", description: "The bill has been updated successfully." });
-            navigate("/bills");
-        }
+      const { error: updateError } = await supabase.from("bills").update(billData).eq("id", billId);
+      error = updateError;
     } else {
-        const { error } = await supabase.from("bills").insert([billData]);
-        if (error) {
-            toast({ title: "Error saving bill", description: error.message, variant: "destructive" });
-        } else {
-            toast({ title: "Bill Saved!", description: "The bill has been saved successfully." });
-            navigate("/bills");
-        }
+      const { error: insertError } = await supabase.from("bills").insert([billData]);
+      error = insertError;
     }
-  };
 
-  const onDownloadPdf = useCallback(async () => {
-    const currentBillData = formMethods.getValues();
-    if (!selectedClient || !profile) {
-        toast({ title: "Missing Information", description: "Please select a client and ensure profile is complete.", variant: "destructive" });
-        return;
+    if (error) {
+        toast({ title: `Error ${isEditMode ? 'updating' : 'saving'} bill`, description: error.message, variant: "destructive" });
+    } else {
+        if (!andThen) {
+          toast({ title: `Bill ${isEditMode ? 'Updated' : 'Saved'}!`, description: `The bill has been ${isEditMode ? 'updated' : 'saved'} successfully.` });
+          if (!isEditMode) navigate("/bills");
+        }
+        if (andThen) andThen();
     }
+  }, [user, selectedClient, isEditMode, billId, navigate, toast]);
+
+  const onDownloadPdf = useCallback(() => {
+    const currentBillData = formMethods.getValues();
+    if (!selectedClient || !profile) return;
 
     const pdfContainer = document.createElement('div');
     document.body.appendChild(pdfContainer);
@@ -390,32 +404,35 @@ export default function CreateBillPage() {
         );
     });
 
-    await renderPromise;
+    renderPromise.then(() => {
+        const opt = {
+            margin:       0.5,
+            filename:     `invoice-${billId || 'new'}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().from(pdfContainer).set(opt).save().then(() => {
+            root.unmount();
+            document.body.removeChild(pdfContainer);
+        });
+    });
 
-    const opt = {
-      margin: 0.5,
-      filename: `invoice-${billId || 'new'}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-    };
+  }, [billId, profile, selectedClient, formMethods]);
 
-    await html2pdf().from(pdfContainer).set(opt).save();
-
-    root.unmount();
-    document.body.removeChild(pdfContainer);
-
-  }, [billId, profile, selectedClient, toast, formMethods]);
+  const handleDownload = () => {
+    handleSubmit(data => onSaveBill(data, onDownloadPdf))();
+  };
 
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     if (searchParams.get('download') === 'true' && profile && selectedClient) {
-      const timer = setTimeout(() => {
-        onDownloadPdf();
-      }, 500);
-      return () => clearTimeout(timer);
+      handleDownload();
+      // Remove the download param from URL to prevent re-downloading on refresh
+      const newUrl = location.pathname;
+      navigate(newUrl, { replace: true });
     }
-  }, [location.search, profile, selectedClient, onDownloadPdf]);
+  }, [location.search, profile, selectedClient, handleDownload, navigate]);
 
   return (
     <div className="bg-gray-50 min-h-screen p-4 sm:p-8">
@@ -428,8 +445,8 @@ export default function CreateBillPage() {
             billId={billId}
         />
         <div className="max-w-4xl mx-auto flex justify-end gap-2 mt-8">
-            <Button variant="outline" onClick={onDownloadPdf}><Download className="h-4 w-4 mr-2"/> Download PDF</Button>
-            <Button onClick={formMethods.handleSubmit(onSaveBill)}><Save className="h-4 w-4 mr-2"/> {isEditMode ? "Update Bill" : "Save Bill"}</Button>
+            <Button variant="outline" onClick={handleDownload}><Download className="h-4 w-4 mr-2"/> Download PDF</Button>
+            <Button onClick={handleSubmit(data => onSaveBill(data))}><Save className="h-4 w-4 mr-2"/> {isEditMode ? "Update Bill" : "Save Bill"}</Button>
         </div>
     </div>
   );

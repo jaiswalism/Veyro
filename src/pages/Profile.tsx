@@ -22,6 +22,7 @@ const profileSchema = z.object({
   gst_number: z.string().optional().nullable(),
   logo_url: z.string().optional().nullable(),
   theme_color: z.string().optional().nullable(),
+  display_logo: z.boolean().default(true),
 });
 
 type ProfileFormData = z.infer<typeof profileSchema>;
@@ -43,10 +44,12 @@ export default function Profile() {
     resolver: zodResolver(profileSchema),
     defaultValues: {
         gst_registered: false,
+        display_logo: true,
     }
   });
 
   const gstRegistered = watch("gst_registered");
+  const displayLogo = watch("display_logo");
   const themeColor = watch("theme_color");
 
   useEffect(() => {
@@ -155,6 +158,10 @@ export default function Profile() {
                 <Label htmlFor="logo">Company Logo</Label>
                 <Input id="logo" type="file" onChange={handleLogoUpload} disabled={uploading} />
                 {uploading && <p className="text-sm text-muted-foreground">Uploading...</p>}
+            </div>
+            <div className="flex items-center space-x-2">
+                <Switch id="display_logo" checked={displayLogo} onCheckedChange={(checked) => setValue("display_logo", checked)} />
+                <Label htmlFor="display_logo">Display Logo on Invoice (instead of Company Name)</Label>
             </div>
              <div className="space-y-2">
                 <Label htmlFor="theme_color">Invoice Theme Color</Label>

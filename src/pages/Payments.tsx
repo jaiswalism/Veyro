@@ -40,7 +40,7 @@ export default function Payments() {
 
   const fetchData = async () => {
     setLoading(true)
-    const { data: billsData, error: billsError } = await supabase.from("bills").select("*")
+    const { data: billsData, error: billsError } = await supabase.from("bills").select("*").order('id', { ascending: false });
     const { data: paymentsData, error: paymentsError } = await supabase.from("payments").select("*")
 
     if (billsError || paymentsError) {
@@ -66,22 +66,36 @@ export default function Payments() {
     fetchData()
   }
 
+  const isBillOverdue = (bill: Bill) => {
+    if (bill.status === 'paid' || !bill.due_date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return new Date(bill.due_date) < today;
+  };
+
   const filteredBills = bills.filter(bill => {
     const matchesSearch = bill.id.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
                          bill.client.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === "all" || bill.status === statusFilter
+    
+    const overdue = isBillOverdue(bill);
+    const status = overdue ? 'overdue' : bill.status;
+
+    const matchesStatus = statusFilter === "all" || status === statusFilter
     return matchesSearch && matchesStatus
   })
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "paid": return "default"
-      case "unpaid": return "secondary"
-      case "overdue": return "destructive"
-      default: return "secondary"
-    }
+  const getStatusVariant = (status: string, due_date: string | null) => {
+    if (status === "paid") return "default"
+    if (due_date && new Date(due_date) < new Date(new Date().toDateString())) return "destructive"
+    return "secondary"
   }
 
+  const getStatusText = (status: string, due_date: string | null) => {
+    if (status === 'paid') return 'paid';
+    if (due_date && new Date(due_date) < new Date(new Date().toDateString())) return 'overdue';
+    return 'unpaid';
+  };
+  
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -89,16 +103,12 @@ export default function Payments() {
       minimumFractionDigits: 0
     }).format(amount)
   }
-
-  const isOverdue = (dueDate: string, status: string) => {
-    if (status === "paid") return false
-    return new Date(dueDate) < new Date() && !new Date(dueDate).toDateString().includes(new Date().toDateString())
-  }
   
   const totalReceived = payments.reduce((sum, p) => sum + p.amount, 0);
-  const outstandingBills = bills.filter(b => b.status === 'unpaid' || b.status === 'overdue');
+  const outstandingBills = bills.filter(b => b.status !== 'paid');
   const outstandingAmount = outstandingBills.reduce((sum, b) => sum + b.amount, 0);
-  const overdueAmount = bills.filter(b => b.status === 'overdue').reduce((sum, b) => sum + b.amount, 0);
+  const overdueBills = bills.filter(isBillOverdue);
+  const overdueAmount = overdueBills.reduce((sum, b) => sum + b.amount, 0);
 
   return (
     <div className="space-y-8">
@@ -155,7 +165,7 @@ export default function Payments() {
               {formatCurrency(overdueAmount)}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {bills.filter(b => b.status === 'overdue').length} overdue bills
+              {overdueBills.length} overdue bills
             </p>
           </CardContent>
         </Card>
@@ -220,9 +230,7 @@ export default function Payments() {
                     </TableRow>
                   ))
                 ) : filteredBills.map((bill) => (
-                  <TableRow key={bill.id} className={
-                    isOverdue(bill.date, bill.status) ? "bg-destructive/5" : ""
-                  }>
+                  <TableRow key={bill.id} className={isBillOverdue(bill) ? "bg-destructive/5" : ""}>
                     <TableCell>
                       <div className="flex items-center space-x-2">
                         <CreditCard className="w-4 h-4 text-muted-foreground" />
@@ -242,18 +250,14 @@ export default function Payments() {
                     <TableCell>
                       <div className="flex items-center space-x-1">
                         <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span className={
-                          isOverdue(bill.date, bill.status) 
-                            ? "text-destructive font-medium" 
-                            : "text-foreground"
-                        }>
-                          {bill.date}
+                        <span className={isBillOverdue(bill) ? "text-destructive font-medium" : "text-foreground"}>
+                          {bill.due_date || bill.date}
                         </span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getStatusVariant(bill.status)}>
-                        {bill.status}
+                      <Badge variant={getStatusVariant(bill.status, bill.due_date)}>
+                        {getStatusText(bill.status, bill.due_date)}
                       </Badge>
                     </TableCell>
                     <TableCell>

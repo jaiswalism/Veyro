@@ -26,6 +26,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchData() {
       const now = new Date()
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Set time to 00:00:00 for accurate date comparison
       const currentMonth = now.getMonth()
       const currentYear = now.getFullYear()
       const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1
@@ -45,7 +46,12 @@ export default function Dashboard() {
       if (bills && clients) {
         const paidBills = bills.filter((b: any) => b.status === "paid")
         const unpaidBills = bills.filter((b: any) => b.status === "unpaid")
-        const overdueBills = bills.filter((b: any) => b.status === "overdue")
+        
+        // Correctly calculate overdue bills based on due_date
+        const overdueBills = bills.filter((b: any) => {
+          const dueDate = new Date(b.due_date);
+          return b.status !== "paid" && dueDate < today;
+        });
 
         const currentMonthBills = bills.filter((b: any) => {
           const billDate = new Date(b.date)
@@ -87,7 +93,7 @@ export default function Dashboard() {
         setStats({
           totalBills: bills.length,
           paidBills: paidBills.length,
-          unpaidBills: unpaidBills.length,
+          unpaidBills: unpaidBills.length + overdueBills.length, // Unpaid is now a sum of unpaid and overdue
           totalClients: clients.length,
           monthlyRevenue: `₹${monthlyRevenue.toLocaleString()}`,
           overdueAmount: `₹${overdueAmount.toLocaleString()}`,
@@ -102,14 +108,25 @@ export default function Dashboard() {
     fetchData()
   }, [])
 
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "paid": return "default"
-      case "unpaid": return "secondary"
-      case "overdue": return "destructive"
-      default: return "secondary"
-    }
+  const getStatusVariant = (status: string, due_date: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(due_date);
+
+    if (status === "paid") return "default"
+    if (dueDate < today) return "destructive"
+    return "secondary"
   }
+
+  const getStatusText = (status: string, due_date: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(due_date);
+  
+    if (status === 'paid') return 'paid';
+    if (dueDate < today) return 'overdue';
+    return 'unpaid';
+  };
 
   return (
     <div className="space-y-8">
@@ -201,8 +218,8 @@ export default function Dashboard() {
                     <p className="font-medium text-foreground">{`₹${bill.amount?.toLocaleString()}`}</p>
                     <p className="text-sm text-muted-foreground">{bill.date}</p>
                   </div>
-                  <Badge variant={getStatusVariant(bill.status)}>
-                    {bill.status}
+                  <Badge variant={getStatusVariant(bill.status, bill.due_date)}>
+                    {getStatusText(bill.status, bill.due_date)}
                   </Badge>
                 </div>
               </div>
