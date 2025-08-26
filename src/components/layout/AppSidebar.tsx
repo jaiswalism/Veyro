@@ -1,52 +1,69 @@
-import { useState } from "react"
-import { Users, FileText, CreditCard, BarChart3, Home, Menu, X, LogOut, Briefcase } from "lucide-react"
-import { NavLink, useLocation } from "react-router-dom"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { useAuth } from "@/contexts/AuthContext"
+import { useState } from "react";
+import {
+  Users,
+  FileText,
+  CreditCard,
+  BarChart3,
+  Home,
+  Menu,
+  X,
+  LogOut,
+  Briefcase,
+} from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import logo from "/logo.png";
 
 const navigation = [
-  { title: "Dashboard", url: "/", icon: Home },
+  { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Clients", url: "/clients", icon: Users },
   { title: "Bills", url: "/bills", icon: FileText },
   { title: "Payments", url: "/payments", icon: CreditCard },
   { title: "Reports", url: "/reports", icon: BarChart3 },
   { title: "Profile", url: "/profile", icon: Briefcase },
-]
+];
 
 export function AppSidebar() {
-  const [collapsed, setCollapsed] = useState(false)
-  const location = useLocation()
-  const currentPath = location.pathname
-  const { signOut } = useAuth()
+  const [collapsed, setCollapsed] = useState(false);
+  const location = useLocation();
+  const currentPath = location.pathname;
+  const { signOut } = useAuth();
 
-  const isActive = (path: string) => currentPath === path
+  const isActive = (path: string) => currentPath === path;
 
   const handleSignOut = async () => {
-    await signOut()
-  }
+    await signOut();
+  };
 
   return (
     <>
       {/* Mobile overlay */}
       {!collapsed && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setCollapsed(true)}
         />
       )}
 
       {/* Sidebar */}
-      <div className={cn(
-        "fixed left-0 top-0 z-50 h-full bg-card border-r border-border transition-all duration-300 lg:relative lg:z-auto flex flex-col",
-        collapsed ? "-translate-x-full lg:translate-x-0 lg:w-16" : "w-64"
-      )}>
+      <div
+        className={cn(
+          "fixed left-0 top-0 z-50 h-full bg-card border-r border-border transition-all duration-300 lg:relative lg:z-auto flex flex-col",
+          collapsed ? "-translate-x-full lg:translate-x-0 lg:w-16" : "w-64"
+        )}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border gap-4">
           {!collapsed && (
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <FileText className="w-5 h-5 text-primary-foreground" />
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+                <img
+                src={logo}
+                alt="Logo"
+                className="w-full h-full object-cover"
+              />
               </div>
               <div>
                 <h1 className="font-semibold text-foreground">Veyro</h1>
@@ -79,7 +96,9 @@ export function AppSidebar() {
                 )
               }
             >
-              <item.icon className={cn("w-5 h-5", collapsed && !collapsed ? "mr-0" : "")} />
+              <item.icon
+                className={cn("w-5 h-5", collapsed && !collapsed ? "mr-0" : "")}
+              />
               {!collapsed && <span>{item.title}</span>}
             </NavLink>
           ))}
@@ -111,5 +130,5 @@ export function AppSidebar() {
         <Menu className="w-4 h-4" />
       </Button>
     </>
-  )
+  );
 }
