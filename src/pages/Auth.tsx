@@ -1,17 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
-import { Truck } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+// import { Truck } from 'lucide-react';
+import Truck from "/logo.jpg";
 
 const Auth = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
@@ -19,7 +26,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate("/");
     }
   }, [user, navigate]);
 
@@ -36,7 +43,7 @@ const Auth = () => {
 
     setLoading(true);
     const { error } = await signIn(email, password);
-    
+
     if (error) {
       toast({
         title: "Error",
@@ -74,12 +81,13 @@ const Auth = () => {
 
     setLoading(true);
     const { error } = await signUp(email, password);
-    
+
     if (error) {
-      if (error.message.includes('already registered')) {
+      if (error.message.includes("already registered")) {
         toast({
           title: "Error",
-          description: "An account with this email already exists. Please sign in instead.",
+          description:
+            "An account with this email already exists. Please sign in instead.",
           variant: "destructive",
         });
       } else {
@@ -103,14 +111,16 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <Truck className="h-8 w-8 text-primary" />
+            <div className="w-16 h-16 bg-primary/10 rounded-full overflow-hidden">
+              <img
+                src={Truck}
+                alt="Logo"
+                className="w-full h-full object-cover"
+              />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Veyro</CardTitle>
-          <CardDescription>
-            Billing. Tracking. Done Right.
-          </CardDescription>
+          <CardDescription>Billing. Tracking. Done Right.</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
@@ -118,7 +128,7 @@ const Auth = () => {
               <TabsTrigger value="signin">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div className="space-y-2">
@@ -148,7 +158,7 @@ const Auth = () => {
                 </Button>
               </form>
             </TabsContent>
-            
+
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div className="space-y-2">

@@ -15,6 +15,7 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import CreateBillPage from "./pages/CreateBill";
+import LandingPage from "./pages/LandingPage";
 
 const queryClient = new QueryClient();
 
@@ -26,24 +27,31 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/*" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/clients" element={<Clients />} />
-                    <Route path="/bills" element={<Bills />} />
-                    <Route path="/bills/new" element={<CreateBillPage />} />
-                    <Route path="/bills/edit/:billId" element={<CreateBillPage />} /> 
-                    <Route path="/payments" element={<Payments />} />
-                    <Route path="/reports" element={<Reports />} />
-                    <Route path="/profile" element={<Profile />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </Layout>
-              </ProtectedRoute>
-            } />
+            <Route
+              path="/*"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Routes>
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/clients" element={<Clients />} />
+                      <Route path="/bills" element={<Bills />} />
+                      <Route path="/bills/new" element={<CreateBillPage />} />
+                      <Route
+                        path="/bills/edit/:billId"
+                        element={<CreateBillPage />}
+                      />
+                      <Route path="/payments" element={<Payments />} />
+                      <Route path="/reports" element={<Reports />} />
+                      <Route path="/profile" element={<Profile />} />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
