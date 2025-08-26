@@ -8,6 +8,8 @@ import {
   Home,
   Users,
   ArrowRight,
+  Heart,
+  Coffee,
 } from "lucide-react";
 import "../landingPage.css";
 
@@ -167,7 +169,11 @@ export default function LandingPage() {
       <footer className="footer">
         <div className="container">
           <div className="footer-content">
-            <p>© 2025 Shyam Jaiswal. Made with ❤️ and ☕ in India</p>
+            <p className="flex items-center">
+              © 2025 Shyam Jaiswal. Made with{" "}
+              <Heart fill="red" color="red" className="inline-block h-4 w-4 mx-1" /> and{" "}
+              <Coffee color="#FFC107" className="inline-block h-4 w-4 mx-1" /> in India
+            </p>
             <div className="footer-links">
               <a href="#">Privacy Policy</a>
               <a href="#">Terms of Service</a>
