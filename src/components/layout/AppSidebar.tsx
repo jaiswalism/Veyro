@@ -125,7 +125,7 @@ export function AppSidebar() {
         variant="outline"
         size="sm"
         onClick={() => setCollapsed(!collapsed)}
-        className="fixed top-4 left-4 z-50 lg:hidden"
+        className="fixed top-4 right-4 z-50 lg:hidden"
       >
         <Menu className="w-4 h-4" />
       </Button>

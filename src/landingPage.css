@@ -39,6 +39,7 @@
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  perspective: 1000px; /* Added for 3D effect */
 }
 .landing-page .container {
   width: 100%;
@@ -152,9 +153,10 @@
   padding: var(--spacing-md);
   text-align: center;
   transition: transform 300ms ease, box-shadow 300ms ease;
+  transform-style: preserve-3d; /* Added for 3D effect */
 }
 .landing-page .feature-card:hover {
-  transform: translateY(-10px);
+  transform: translateY(-10px) rotateX(10deg) rotateY(5deg); /* Updated hover effect */
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
 }
 .landing-page .feature-icon {
@@ -164,15 +166,19 @@
   margin-bottom: var(--spacing-sm);
   background-image: var(--gradient-main);
   color: white;
+  transform: translateZ(20px); /* Added for 3D effect */
 }
 .landing-page .feature-card h3 {
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
+  transform: translateZ(15px); /* Added for 3D effect */
 }
 .landing-page .feature-card p {
   color: var(--text-secondary);
+  transform: translateZ(10px); /* Added for 3D effect */
 }
+
 
 /* CTA Section */
 .landing-page .cta-section {
@@ -209,6 +215,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .landing-page .footer-links {
@@ -224,4 +232,29 @@
 
 .landing-page .footer-links a:hover {
   color: var(--text-primary);
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .landing-page .nav-link {
+    display: none;
+  }
+
+  .landing-page .hero-title {
+    font-size: 2.5rem;
+  }
+
+  .landing-page .hero-subtitle {
+    font-size: 1rem;
+  }
+
+  .landing-page .section-title {
+    font-size: 2rem;
+  }
+
+  .landing-page .footer-content {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
 }

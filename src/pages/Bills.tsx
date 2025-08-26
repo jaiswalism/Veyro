@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Plus, Search, Download, FileText, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -109,6 +109,35 @@ export default function Bills() {
     }).format(amount)
   }
 
+  const BillActions = ({ bill }: { bill: Bill }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => navigate(`/bills/edit/${bill.id}`)}>
+          <Pencil className="w-4 h-4 mr-2" />
+          Edit Bill
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => handleDownloadPdf(bill.id)}>
+          <Download className="w-4 h-4 mr-2" />
+          Download PDF
+        </DropdownMenuItem>
+        {bill.status !== "paid" && (
+          <DropdownMenuItem>
+            Mark as Paid
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(bill.id)}>
+          <Trash2 className="w-4 h-4 mr-2" />
+          Delete Bill
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -156,7 +185,8 @@ export default function Bills() {
           <CardTitle className="text-foreground">All Bills ({filteredBills.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-border">
+          {/* Desktop Table View */}
+          <div className="hidden rounded-md border border-border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -169,13 +199,13 @@ export default function Bills() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  Array.from({ length: 3 }).map((_, index) => (
+                  Array.from({ length: 5 }).map((_, index) => (
                     <TableRow key={index}>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                      <TableCell><Skeleton className="h-10 w-10" /></TableCell>
+                      <TableCell><Skeleton className="h-10 w-10 ml-auto" /></TableCell>
                     </TableRow>
                   ))
                 ) : filteredBills.map((bill) => (
@@ -203,37 +233,47 @@ export default function Bills() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => navigate(`/bills/edit/${bill.id}`)}>
-                            <Pencil className="w-4 h-4 mr-2" />
-                            Edit Bill
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDownloadPdf(bill.id)}>
-                            <Download className="w-4 h-4 mr-2" />
-                            Download PDF
-                          </DropdownMenuItem>
-                          {bill.status !== "paid" && (
-                            <DropdownMenuItem>
-                              Mark as Paid
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(bill.id)}>
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete Bill
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <BillActions bill={bill} />
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="space-y-4 md:hidden">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, index) => (
+                <Card key={index}>
+                  <CardContent className="p-4">
+                    <Skeleton className="h-6 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-full mt-4" />
+                    <Skeleton className="h-4 w-2/3 mt-2" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : filteredBills.map((bill) => (
+              <Card key={bill.id}>
+                <CardHeader className="flex flex-row items-center justify-between p-4">
+                  <div>
+                    <CardTitle className="text-lg">Bill #{bill.id}</CardTitle>
+                    <CardDescription>{bill.client}</CardDescription>
+                  </div>
+                  <BillActions bill={bill} />
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-2 text-sm">
+                  <p><span className="font-medium text-muted-foreground">Amount:</span> {formatCurrency(bill.amount)}</p>
+                  <p><span className="font-medium text-muted-foreground">Date:</span> {bill.date}</p>
+                </CardContent>
+                <CardFooter className="p-4 pt-0">
+                  <Badge variant={getStatusVariant(bill.status)}>
+                    {bill.status}
+                  </Badge>
+                </CardFooter>
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>

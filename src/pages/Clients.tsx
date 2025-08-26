@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { Plus, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -17,10 +17,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { supabase } from "@/integrations/supabase/client"
+import { supabase } from "../integrations/supabase/client"
 import { Database } from "@/integrations/supabase/types"
 import { useToast } from "@/hooks/use-toast"
-import { AddClientDialog } from "@/components/clients/AddClientDialog"
+import { AddClientDialog } from "../components/clients/AddClientDialog"
 import { Skeleton } from "@/components/ui/skeleton"
 
 type Client = Database['public']['Tables']['clients']['Row'];
@@ -35,7 +35,7 @@ export default function Clients() {
 
   const fetchClients = async () => {
     setLoading(true)
-    const { data, error } = await supabase.from("clients").select("*")
+    const { data, error } = await supabase.from("clients").select("*").order('id', { ascending: false });
 
     if (error) {
       toast({
@@ -54,7 +54,8 @@ export default function Clients() {
   }, [])
 
   const handleDelete = async (clientId: number) => {
-    if (window.confirm("Are you sure you want to delete this client?")) {
+    // A simple confirmation dialog
+    if (window.confirm("Are you sure you want to delete this client? This action cannot be undone.")) {
       const { error } = await supabase.from("clients").delete().eq("id", clientId)
       if (error) {
         toast({
@@ -83,6 +84,26 @@ export default function Clients() {
     (client.company && client.company.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (client.gst && client.gst.toLowerCase().includes(searchTerm.toLowerCase()))
   )
+
+  const ClientActions = ({ client }: { client: Client }) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+          <MoreHorizontal className="w-4 h-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => { setEditingClient(client); setIsDialogOpen(true); }}>
+          <Pencil className="w-4 h-4 mr-2" />
+          Edit Client
+        </DropdownMenuItem>
+        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(client.id)}>
+          <Trash2 className="w-4 h-4 mr-2" />
+          Delete Client
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 
   return (
     <div className="space-y-8">
@@ -117,13 +138,14 @@ export default function Clients() {
         </CardHeader>
       </Card>
 
-      {/* Clients Table */}
+      {/* Clients List */}
       <Card>
         <CardHeader>
           <CardTitle className="text-foreground">All Clients ({filteredClients.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border border-border">
+          {/* Desktop Table View */}
+          <div className="hidden rounded-md border border-border md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -135,7 +157,7 @@ export default function Clients() {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  Array.from({ length: 3 }).map((_, index) => (
+                  Array.from({ length: 5 }).map((_, index) => (
                     <TableRow key={index}>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                       <TableCell><Skeleton className="h-10 w-full" /></TableCell>
@@ -160,32 +182,52 @@ export default function Clients() {
                     </TableCell>
                     <TableCell>
                       <code className="text-sm bg-muted px-2 py-1 rounded">
-                        {client.gst}
+                        {client.gst || "N/A"}
                       </code>
                     </TableCell>
                     <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => { setEditingClient(client); setIsDialogOpen(true); }}>
-                            <Pencil className="w-4 h-4 mr-2" />
-                            Edit Client
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(client.id)}>
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete Client
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <ClientActions client={client} />
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="space-y-4 md:hidden">
+            {loading ? (
+              Array.from({ length: 5 }).map((_, index) => (
+                <Card key={index}>
+                  <CardContent className="p-4">
+                    <Skeleton className="h-6 w-3/4 mb-2" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-full mt-4" />
+                    <Skeleton className="h-4 w-2/3 mt-2" />
+                  </CardContent>
+                </Card>
+              ))
+            ) : filteredClients.map((client) => (
+              <Card key={client.id}>
+                <CardHeader className="flex flex-row items-center justify-between p-4">
+                    <div>
+                        <CardTitle className="text-lg">{client.name}</CardTitle>
+                        {client.company && <CardDescription>{client.company}</CardDescription>}
+                    </div>
+                    <ClientActions client={client} />
+                </CardHeader>
+                <CardContent className="p-4 pt-0 space-y-2 text-sm">
+                    {client.contact && <p><span className="font-medium text-muted-foreground">Contact:</span> {client.contact}</p>}
+                    {client.email && <p><span className="font-medium text-muted-foreground">Email:</span> {client.email}</p>}
+                    {client.address && <p><span className="font-medium text-muted-foreground">Address:</span> {client.address}</p>}
+                </CardContent>
+                {client.gst && (
+                    <CardFooter className="p-4 pt-0">
+                        <p className="text-xs"><span className="font-medium text-muted-foreground">GST:</span> <code className="bg-muted px-1.5 py-0.5 rounded">{client.gst}</code></p>
+                    </CardFooter>
+                )}
+              </Card>
+            ))}
           </div>
         </CardContent>
       </Card>
